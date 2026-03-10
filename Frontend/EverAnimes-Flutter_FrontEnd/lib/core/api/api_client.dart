@@ -17,20 +17,29 @@ const String _kConfiguredApiBaseUrl = String.fromEnvironment(
   defaultValue: '',
 );
 
+bool _isLoopbackUrl(String value) {
+  final lowered = value.toLowerCase();
+  return lowered.contains('localhost') || lowered.contains('127.0.0.1');
+}
+
+String _webOriginBaseUrl() {
+  if (!kIsWeb) return '';
+  final origin = Uri.base.origin;
+  return origin == 'null' ? '' : origin;
+}
+
 String get kApiBaseUrl {
   final configured = _kConfiguredApiBaseUrl.trim();
   if (configured.isNotEmpty) {
     // Em produção web, nunca permitir localhost/loopback.
-    if (kIsWeb && kReleaseMode) {
-      final lowered = configured.toLowerCase();
-      final isLoopback = lowered.contains('localhost') || lowered.contains('127.0.0.1');
-      if (isLoopback) return '';
+    if (kIsWeb && kReleaseMode && _isLoopbackUrl(configured)) {
+      return _webOriginBaseUrl();
     }
     return configured;
   }
 
-  // Em release web, usa URL relativa para evitar localhost hardcoded.
-  if (kIsWeb && kReleaseMode) return '';
+  // Em release web, usa a origem atual da página (window.location.origin).
+  if (kIsWeb && kReleaseMode) return _webOriginBaseUrl();
 
   // Fallback para desenvolvimento local.
   return 'http://localhost:7118';
