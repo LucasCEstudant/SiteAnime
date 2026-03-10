@@ -93,17 +93,7 @@ class ApiClient {
               'Accept': 'application/json',
             },
           ),
-        ) {
-    if (kDebugMode) {
-      _dio.interceptors.add(
-        LogInterceptor(
-          requestBody: true,
-          responseBody: true,
-          logPrint: _log,
-        ),
-      );
-    }
-  }
+        );
 
   final Dio _dio;
 
@@ -124,12 +114,6 @@ class ApiClient {
         dio: _dio,
       ),
     );
-  }
-
-  // ignore: avoid_print — log de desenvolvimento, será substituído por logger real
-  static void _log(Object object) {
-    // ignore: avoid_print
-    print('[ApiClient] $object');
   }
 
   /// GET genérico que retorna a resposta completa.
