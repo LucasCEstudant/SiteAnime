@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+**/*.suo
+**/*.vscode/
+**/*.DS_Store
+
+# docker files
+src/AnimeHub.Api/Dockerfile
+docker-compose*.yml

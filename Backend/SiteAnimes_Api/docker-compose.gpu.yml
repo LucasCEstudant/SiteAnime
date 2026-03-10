@@ -1,0 +1,11 @@
+# GPU override — layer on top of docker-compose.deploy.yml when NVIDIA GPU is available.
+# Usage: docker compose -f docker-compose.deploy.yml -f docker-compose.gpu.yml up -d realesrgan
+services:
+  realesrgan:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

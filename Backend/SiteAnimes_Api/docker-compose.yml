@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    container_name: libretranslate
+    ports:
+      - "5000:5000"
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/languages"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: ./src/AnimeHub.Api/Dockerfile
+    depends_on:
+      - libretranslate
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=AnimeHubDb;User Id=sa;Password=AnimeHub@2026!;TrustServerCertificate=True;
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - Translation__BaseUrl=http://libretranslate:5000
+    ports:
+      - "7118:80"
+    restart: on-failure

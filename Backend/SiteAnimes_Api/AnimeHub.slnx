@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AnimeHub.Api/AnimeHub.Api.csproj" />
+    <Project Path="src/AnimeHub.Application/AnimeHub.Application.csproj" />
+    <Project Path="src/AnimeHub.Domain/AnimeHub.Domain.csproj" />
+    <Project Path="src/AnimeHub.Infrastructure/AnimeHub.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AnimeHub.Tests.Integration/AnimeHub.Tests.Integration.csproj" />
+    <Project Path="tests/AnimeHub.Tests.Unit/AnimeHub.Tests.Unit.csproj" />
+  </Folder>
+</Solution>

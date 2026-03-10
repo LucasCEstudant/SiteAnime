@@ -1,0 +1,75 @@
+volumes:
+  libretranslate_models:
+    name: libretranslate_models
+  libretranslate_cache:
+    name: libretranslate_cache
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver-animehub
+    profiles: ["withdb"]
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=AnimeHub@2026!
+    ports:
+      - "1433:1433"
+    restart: unless-stopped
+
+  # One-shot init: fix volume ownership for UID 1032 (LibreTranslate container user)
+  # Reference: https://techoverflow.net/2025/05/26/how-to-fix-libretranslate-docker-permissionerror-errno-13-permission-denied-home-libretranslate-local-share-argos-translate/
+  libretranslate-init:
+    image: alpine:latest
+    container_name: libretranslate-init
+    volumes:
+      - "libretranslate_models:/data/models"
+      - "libretranslate_cache:/data/cache"
+    command: ["sh", "-c", "chown -R 1032:1032 /data/models /data/cache"]
+    restart: "no"
+
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    container_name: libretranslate
+    profiles: ["libre"]
+    depends_on:
+      libretranslate-init:
+        condition: service_completed_successfully
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/languages"]
+      interval: 30s
+      timeout: 30s
+      retries: 20
+    volumes:
+      - "libretranslate_models:/home/libretranslate/.local/share/argos-translate:rw"
+      - "libretranslate_cache:/home/libretranslate/.local/cache:rw"
+
+  realesrgan:
+    build:
+      context: ./docker/realesrgan-service
+    container_name: realesrgan
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: ./src/AnimeHub.Api/Dockerfile
+    container_name: animehub-api
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=AnimeHubDb;User Id=sa;Password=AnimeHub@2026!;TrustServerCertificate=True;
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Translation__BaseUrl=http://libretranslate:5000
+      - Translation__TimeoutSeconds=60
+      - ImageUpscale__ServiceUrl=http://realesrgan:8000
+    ports:
+      - "7118:80"
+    restart: unless-stopped

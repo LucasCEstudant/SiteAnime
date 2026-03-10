@@ -1,0 +1,108 @@
+# ╔═══════════════════════════════════════════════════════════════════════╗
+# ║  AnimeHub – Unified Docker Compose (Release)                        ║
+# ║  Ports: 32300 (front) · 32301 (api) · 32303 (db) · 32304 (translate)║
+# ╚═══════════════════════════════════════════════════════════════════════╝
+#
+# Usage:
+#   docker compose up -d --build
+#   docker compose down
+
+volumes:
+  libretranslate_models:
+    name: animehub_libretranslate_models
+  libretranslate_cache:
+    name: animehub_libretranslate_cache
+  sqlserver_data:
+    name: animehub_sqlserver_data
+
+services:
+  # ── SQL Server ────────────────────────────────────────────────────────
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: animehub-sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=AnimeHub@2026!
+      - MSSQL_PID=Express
+    ports:
+      - "32303:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    restart: unless-stopped
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "AnimeHub@2026!" -C -Q "SELECT 1" -b
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # ── LibreTranslate init (fix volume permissions for UID 1032) ─────────
+  libretranslate-init:
+    image: alpine:latest
+    container_name: animehub-libretranslate-init
+    volumes:
+      - libretranslate_models:/data/models
+      - libretranslate_cache:/data/cache
+    command: ["sh", "-c", "chown -R 1032:1032 /data/models /data/cache"]
+    restart: "no"
+
+  # ── LibreTranslate ────────────────────────────────────────────────────
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    container_name: animehub-libretranslate
+    depends_on:
+      libretranslate-init:
+        condition: service_completed_successfully
+    ports:
+      - "32304:5000"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; urllib.request.urlopen('http://localhost:5000/languages', timeout=10); sys.exit(0)",
+        ]
+      interval: 30s
+      timeout: 30s
+      retries: 20
+      start_period: 60s
+    volumes:
+      - libretranslate_models:/home/libretranslate/.local/share/argos-translate:rw
+      - libretranslate_cache:/home/libretranslate/.local/cache:rw
+
+  # ── Backend API (.NET 10) ─────────────────────────────────────────────
+  api:
+    build:
+      context: ./Backend/SiteAnimes_Api
+      dockerfile: ./src/AnimeHub.Api/Dockerfile
+    container_name: animehub-api
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=AnimeHubDb;User Id=sa;Password=AnimeHub@2026!;TrustServerCertificate=True;
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      - Translation__BaseUrl=http://libretranslate:5000
+      - Translation__TimeoutSeconds=60
+      - Cors__AllowedOrigins__0=http://localhost:32300
+      - Serilog__MinimumLevel__Default=Warning
+    ports:
+      - "32301:80"
+    restart: unless-stopped
+
+  # ── Frontend (Flutter Web + nginx) ────────────────────────────────────
+  frontend:
+    build:
+      context: ./Frontend/EverAnimes-Flutter_FrontEnd
+      dockerfile: Dockerfile
+      args:
+        API_BASE_URL: ""
+    container_name: animehub-frontend
+    depends_on:
+      - api
+    ports:
+      - "32300:80"
+    restart: unless-stopped

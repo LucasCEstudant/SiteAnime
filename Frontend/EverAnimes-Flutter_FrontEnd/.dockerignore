@@ -1,0 +1,12 @@
+.dart_tool
+.gradle
+.idea
+.vscode
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+/.git
+/.github
+/.vs
+node_modules
+*.log
