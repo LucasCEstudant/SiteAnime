@@ -131,13 +131,30 @@ function Test-Wsl2Available {
 }
 
 function Test-NvidiaGpuOnHost {
-    <# Returns $true if nvidia-smi runs successfully on the host. #>
+    <# Returns $true if nvidia-smi runs successfully AND detects at least one GPU.
+       Handles edge cases where the binary exists (from a previous driver install)
+       but no physical GPU is present. #>
     $cmd = Get-Command nvidia-smi -ErrorAction SilentlyContinue
     if (-not $cmd) { return $false }
     try {
-        $null = nvidia-smi 2>&1
-        return ($LASTEXITCODE -eq 0)
-    } catch { return $false }
+        $output = nvidia-smi 2>&1
+        if ($LASTEXITCODE -ne 0) { return $false }
+        # Parse output to verify an actual GPU is listed
+        $text = ($output | Out-String)
+        if ($text -match 'No devices were found') { return $false }
+        if ($text -match 'NVIDIA-SMI has failed') { return $false }
+        if ($text -match 'no NVIDIA GPU') { return $false }
+        if ($text -match 'NVML.*error') { return $false }
+        if ($text -match 'couldn.t communicate') { return $false }
+        # Verify nvidia-smi shows a GPU product name
+        if ($text -notmatch 'NVIDIA\s+(GeForce|RTX|GTX|Quadro|Tesla|A100|A10|H100|L4|T4)') {
+            Write-Host "    nvidia-smi executou mas nenhuma GPU reconhecida na saida." -ForegroundColor DarkGray
+            return $false
+        }
+        return $true
+    } catch {
+        return $false
+    }
 }
 
 function Test-DockerNvidiaRuntime {
@@ -149,18 +166,41 @@ function Test-DockerNvidiaRuntime {
 }
 
 function Test-DockerGpuSupport {
-    <# Returns $true if Docker can use the NVIDIA GPU.
-       Uses 'docker info' as the primary fast check (avoids pulling a large CUDA image).
-       Falls back to a container test only when docker info does not show the nvidia runtime. #>
-    # Fast path: check 'docker info' for nvidia runtime
-    if (Test-DockerNvidiaRuntime) {
-        return $true
+    <# Returns $true if Docker can actually use an NVIDIA GPU.
+       Step 1: checks if nvidia runtime is registered in 'docker info'.
+       Step 2: runs a lightweight container with --gpus all to verify GPU access.
+       This prevents false positives when the NVIDIA Container Toolkit is installed
+       but no physical GPU is present (common on machines with leftover driver installs). #>
+
+    # Step 1: nvidia runtime must be registered
+    if (-not (Test-DockerNvidiaRuntime)) {
+        Write-Host "    docker info: runtime nvidia nao registrado." -ForegroundColor DarkGray
+        return $false
     }
-    # Fallback: try running nvidia-smi inside a container (will pull image on first use)
+    Write-Host "    docker info: runtime nvidia detectado. Verificando acesso real a GPU..." -ForegroundColor DarkGray
+
+    # Step 2: verify a GPU is actually accessible inside a container
+    # Use a small alpine image (fast pull) instead of large CUDA image
     try {
-        $out = docker run --rm --gpus all nvidia/cuda:12.3.2-base-ubuntu22.04 nvidia-smi 2>&1
-        return ($LASTEXITCODE -eq 0)
-    } catch { return $false }
+        $out = docker run --rm --gpus all alpine echo gpu-ok 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "    GPU acessivel dentro do container Docker." -ForegroundColor DarkGray
+            return $true
+        }
+        # Check for the specific "no adapters" WSL error
+        $errText = ($out | Out-String)
+        if ($errText -match 'no adapters were found') {
+            Write-Host "    NVIDIA runtime existe mas nenhum adaptador GPU encontrado (WSL)." -ForegroundColor DarkGray
+        } elseif ($errText -match 'could not select device driver') {
+            Write-Host "    NVIDIA runtime existe mas driver de dispositivo nao encontrado." -ForegroundColor DarkGray
+        } else {
+            Write-Host "    Teste de GPU em container falhou: $($errText.Trim().Substring(0, [Math]::Min(200, $errText.Trim().Length)))" -ForegroundColor DarkGray
+        }
+        return $false
+    } catch {
+        Write-Host "    Excecao ao testar GPU em container: $_" -ForegroundColor DarkGray
+        return $false
+    }
 }
 
 function Get-WslUserDistros {
@@ -558,11 +598,45 @@ if (-not $skipRealesrgan) {
 
     Push-Location $repoRoot
     try {
-        & $esrganExe @esrganArgs 2>&1 | Out-Null
+        $esrganOutput = & $esrganExe @esrganArgs 2>&1
         $esrganExit = $LASTEXITCODE
         if ($esrganExit -ne 0) {
             $realesrganError = "Compose exited with code $esrganExit for realesrgan service."
             Write-Warn $realesrganError
+
+            # Check if the error is GPU-related — retry without GPU overlay
+            $esrganErrText = ($esrganOutput | Out-String)
+            $isGpuError = ($esrganErrText -match 'nvidia-container-cli' -or
+                           $esrganErrText -match 'no adapters were found' -or
+                           $esrganErrText -match 'could not select device driver' -or
+                           $esrganErrText -match 'OCI runtime create failed')
+
+            if ($isGpuError -and $gpuAvailable) {
+                Write-Warn 'Erro de GPU detectado ao criar container. Retentando em modo CPU...'
+                $gpuAvailable = $false
+                $gpuNote = 'Falha ao iniciar com GPU. Fallback automatico para CPU.'
+
+                # Rebuild args without GPU compose file
+                if ($composeMode -eq 'plugin') {
+                    $esrganArgs = @('compose', '-f', $composeFile)
+                    $esrganArgs += @('up', '-d', '--no-deps', '--build', '--force-recreate', 'realesrgan')
+                    $esrganExe = 'docker'
+                } else {
+                    $esrganArgs = @('-f', $composeFile)
+                    $esrganArgs += @('up', '-d', '--no-deps', '--build', '--force-recreate', 'realesrgan')
+                    $esrganExe = 'docker-compose'
+                }
+
+                $esrganOutput2 = & $esrganExe @esrganArgs 2>&1
+                $esrganExit2 = $LASTEXITCODE
+                if ($esrganExit2 -eq 0) {
+                    $realesrganError = $null
+                    Write-Ok 'Real-ESRGAN iniciado em modo CPU (fallback automatico).'
+                } else {
+                    $realesrganError = "Fallback CPU tambem falhou (exit $esrganExit2)."
+                    Write-Fail $realesrganError
+                }
+            }
         } else {
             Write-Ok "Real-ESRGAN service started."
         }
