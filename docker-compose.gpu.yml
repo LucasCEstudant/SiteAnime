@@ -1,0 +1,12 @@
+# GPU override for Real-ESRGAN on hosts with NVIDIA runtime available.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+services:
+  realesrgan:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

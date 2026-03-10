@@ -1,6 +1,6 @@
 # ╔═══════════════════════════════════════════════════════════════════════╗
 # ║  AnimeHub – Unified Docker Compose (Release)                        ║
-# ║  Ports: 32300 (front) · 32301 (api) · 32303 (db) · 32304 (translate)║
+# ║  Ports: 32300 (front) · 32301 (api) · 32303 (db) · 32304 (translate) · 32305 (upscale)║
 # ╚═══════════════════════════════════════════════════════════════════════╝
 #
 # Usage:
@@ -36,23 +36,13 @@ services:
       retries: 10
       start_period: 30s
 
-  # ── LibreTranslate init (fix volume permissions for UID 1032) ─────────
-  libretranslate-init:
-    image: alpine:latest
-    container_name: animehub-libretranslate-init
-    volumes:
-      - libretranslate_models:/data/models
-      - libretranslate_cache:/data/cache
-    command: ["sh", "-c", "chown -R 1032:1032 /data/models /data/cache"]
-    restart: "no"
-
   # ── LibreTranslate ────────────────────────────────────────────────────
   libretranslate:
     image: libretranslate/libretranslate:latest
     container_name: animehub-libretranslate
-    depends_on:
-      libretranslate-init:
-        condition: service_completed_successfully
+    user: "0:0"
+    stdin_open: true
+    tty: true
     ports:
       - "32304:5000"
     restart: unless-stopped
@@ -81,17 +71,37 @@ services:
     depends_on:
       sqlserver:
         condition: service_healthy
+      realesrgan:
+        condition: service_healthy
     environment:
       - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=AnimeHubDb;User Id=sa;Password=AnimeHub@2026!;TrustServerCertificate=True;
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:80
       - Translation__BaseUrl=http://libretranslate:5000
       - Translation__TimeoutSeconds=60
+      - ImageUpscale__ServiceUrl=http://realesrgan:8000
       - Cors__AllowedOrigins__0=http://localhost:32300
       - Serilog__MinimumLevel__Default=Warning
     ports:
       - "32301:80"
     restart: unless-stopped
+
+  # ── Real-ESRGAN (CPU/GPU auto fallback) ─────────────────────────────
+  realesrgan:
+    build:
+      context: ./Backend/SiteAnimes_Api/docker/realesrgan-service
+    container_name: realesrgan
+    environment:
+      - UPSCALE_MODE=auto
+      - ESRGAN_TIMEOUT=120
+    ports:
+      - "32305:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
 
   # ── Frontend (Flutter Web + nginx) ────────────────────────────────────
   frontend:

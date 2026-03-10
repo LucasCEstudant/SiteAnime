@@ -147,6 +147,29 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             });
     });
+
+    // Image proxy endpoint
+    options.AddPolicy("image-proxy", httpContext =>
+    {
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        var permitLimit = cfg.ImageProxy.PermitLimit > 0
+            ? cfg.ImageProxy.PermitLimit
+            : 300;
+        var windowSeconds = cfg.ImageProxy.WindowSeconds > 0
+            ? cfg.ImageProxy.WindowSeconds
+            : 60;
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: $"image-proxy:{ip}",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = permitLimit,
+                Window = TimeSpan.FromSeconds(windowSeconds),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
 });
 
 builder.Services.AddOpenTelemetry()
