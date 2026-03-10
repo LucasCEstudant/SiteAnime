@@ -18,7 +18,16 @@ const String _kConfiguredApiBaseUrl = String.fromEnvironment(
 );
 
 String get kApiBaseUrl {
-  if (_kConfiguredApiBaseUrl.isNotEmpty) return _kConfiguredApiBaseUrl;
+  final configured = _kConfiguredApiBaseUrl.trim();
+  if (configured.isNotEmpty) {
+    // Em produção web, nunca permitir localhost/loopback.
+    if (kIsWeb && kReleaseMode) {
+      final lowered = configured.toLowerCase();
+      final isLoopback = lowered.contains('localhost') || lowered.contains('127.0.0.1');
+      if (isLoopback) return '';
+    }
+    return configured;
+  }
 
   // Em release web, usa URL relativa para evitar localhost hardcoded.
   if (kIsWeb && kReleaseMode) return '';
