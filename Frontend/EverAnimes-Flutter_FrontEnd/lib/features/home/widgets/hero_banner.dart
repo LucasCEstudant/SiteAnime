@@ -11,7 +11,6 @@ import '../../details/data/dtos/anime_details_dto.dart';
 import '../../user_animes/presentation/user_animes_providers.dart'
     show AddToListResult, AddToListOutcome, addAnimeToListProvider, addDetailsAnimeToListProvider;
 import '../presentation/home_banner_providers.dart';
-import '../presentation/home_providers.dart';
 import 'home_skeletons.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,45 +37,25 @@ class HeroBanner extends ConsumerWidget {
     final screenHeight = MediaQuery.sizeOf(context).height;
     final heroHeight = screenHeight * _kHeroHeightFactor;
 
-    // Tenta usar o banner primário configurado via API.
-    final asyncBanner = ref.watch(resolvedPrimaryBannerProvider);
-    // Fallback: primeiro anime do banco local.
-    final asyncLocal = ref.watch(localAnimesProvider);
+    // heroAnimeProvider: tenta o banner primário e só busca animes locais
+    // como fallback se o banner estiver ausente — evita chamada desnecessária
+    // a GET /api/animes quando o banner está configurado.
+    final asyncAnime = ref.watch(heroAnimeProvider);
 
     return ClipPath(
       clipper: const _HeroArcClipper(),
       child: SizedBox(
         height: heroHeight,
         width: double.infinity,
-        child: asyncBanner.when(
+        child: asyncAnime.when(
           loading: () => const HeroBannerSkeleton(),
-          error: (_, __) => _buildFallback(asyncLocal, heroHeight),
-          data: (resolved) {
-            if (resolved != null &&
-                resolved.anime.coverUrl?.isNotEmpty == true) {
-              return _HeroContent(
-                  anime: resolved.anime, heroHeight: heroHeight);
-            }
-            // Banner não configurado ou sem cover → fallback
-            return _buildFallback(asyncLocal, heroHeight);
+          error: (_, __) => const HeroBannerSkeleton(),
+          data: (anime) {
+            if (anime == null) return const HeroBannerSkeleton();
+            return _HeroContent(anime: anime, heroHeight: heroHeight);
           },
         ),
       ),
-    );
-  }
-
-  /// Fallback: usa o primeiro anime local com cover disponível.
-  Widget _buildFallback(
-      AsyncValue<List<AnimeItemDto>> asyncLocal, double heroHeight) {
-    return asyncLocal.when(
-      loading: () => const HeroBannerSkeleton(),
-      error: (_, __) => const HeroBannerSkeleton(),
-      data: (items) {
-        final featured =
-            items.where((a) => a.coverUrl?.isNotEmpty == true).firstOrNull;
-        if (featured == null) return const HeroBannerSkeleton();
-        return _HeroContent(anime: featured, heroHeight: heroHeight);
-      },
     );
   }
 }

@@ -5,6 +5,7 @@ import '../../../core/data/dtos/anime_item_dto.dart';
 import '../data/dtos/home_banner_dto.dart';
 import '../data/home_banner_remote_datasource.dart';
 import '../../details/presentation/details_providers.dart';
+import 'home_providers.dart';
 
 // ─── Infraestrutura ──────────────────────────────────────────────
 
@@ -102,17 +103,6 @@ final resolvedPrimaryBannerProvider =
   return _resolveBanner(ref, primary);
 });
 
-/// Provider que resolve o banner secundário (home-secondary).
-final resolvedSecondaryBannerProvider =
-    FutureProvider<ResolvedBanner?>((ref) async {
-  final banners = await ref.watch(homeBannersProvider.future);
-  final secondary = banners
-      .where((b) => b.slot == 'home-secondary')
-      .firstOrNull;
-  if (secondary == null) return null;
-  return _resolveBanner(ref, secondary);
-});
-
 /// Provider que resolve todos os banners secundários (para o carrossel).
 /// Hoje a API só tem home-secondary, mas o front já suporta N banners.
 final resolvedSecondaryBannersProvider =
@@ -127,4 +117,37 @@ final resolvedSecondaryBannersProvider =
     if (r != null) resolved.add(r);
   }
   return resolved;
+});
+
+/// Provider combinado para o HeroBanner.
+/// Tenta o banner primário primeiro; só busca animes locais como fallback
+/// se o banner estiver ausente/vazio — evitando a chamada desnecessária
+/// a GET /api/animes quando o banner está configurado.
+final heroAnimeProvider = FutureProvider<AnimeItemDto?>((ref) async {
+  final resolved = await ref.watch(resolvedPrimaryBannerProvider.future);
+  if (resolved != null && resolved.anime.coverUrl?.isNotEmpty == true) {
+    return resolved.anime;
+  }
+  // Fallback: primeiro anime local com cover.
+  final locals = await ref.watch(localAnimesProvider.future);
+  return locals.where((a) => a.coverUrl?.isNotEmpty == true).firstOrNull;
+});
+
+/// Provider combinado para o FeaturedExpandedSection.
+/// Tenta banners secundários primeiro; só busca animes locais como fallback
+/// se não houver banners — evitando a chamada desnecessária a GET /api/animes
+/// quando banners estão configurados.
+final featuredAnimesProvider = FutureProvider<List<AnimeItemDto>>((ref) async {
+  final banners = await ref.watch(resolvedSecondaryBannersProvider.future);
+  if (banners.isNotEmpty) {
+    return banners.map((b) => b.anime).toList();
+  }
+  // Fallback: últimos animes locais com cover.
+  final locals = await ref.watch(localAnimesProvider.future);
+  final candidates =
+      locals.where((a) => a.coverUrl?.isNotEmpty == true).toList();
+  if (candidates.isEmpty) return [];
+  return candidates.length > 3
+      ? candidates.sublist(candidates.length - 3)
+      : [candidates.last];
 });

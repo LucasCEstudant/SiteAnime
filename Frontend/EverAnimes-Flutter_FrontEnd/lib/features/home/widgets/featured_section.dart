@@ -11,7 +11,6 @@ import '../../../features/details/presentation/details_providers.dart';
 import '../../../features/details/presentation/video_embed_helper.dart';
 import '../../../l10n/app_localizations.dart';
 import '../presentation/home_banner_providers.dart';
-import '../presentation/home_providers.dart';
 import 'hero_banner.dart' show StarRatingWidget, AddToListButton, CircularPlayButton;
 import 'home_skeletons.dart';
 
@@ -95,38 +94,19 @@ class _FeaturedExpandedSectionState
 
   @override
   Widget build(BuildContext context) {
-    // Tenta resolver banners secundários via API.
-    final asyncBanners = ref.watch(resolvedSecondaryBannersProvider);
-    // Fallback: animes locais.
-    final asyncLocal = ref.watch(localAnimesProvider);
+    // featuredAnimesProvider: tenta banners secundários e só busca animes
+    // locais como fallback se não houver banners — evita chamada desnecessária
+    // a GET /api/animes quando banners estão configurados.
+    final asyncAnimes = ref.watch(featuredAnimesProvider);
 
-    return asyncBanners.when(
+    return asyncAnimes.when(
       loading: () => const FeaturedSectionSkeleton(),
-      error: (_, __) => _buildFromLocal(asyncLocal),
-      data: (banners) {
-        if (banners.isEmpty) return _buildFromLocal(asyncLocal);
-        final animeList = banners.map((b) => b.anime).toList();
-        return _buildCarousel(animeList);
+      error: (_, __) => const SizedBox.shrink(),
+      data: (animes) {
+        if (animes.isEmpty) return const SizedBox.shrink();
+        return _buildCarousel(animes);
       },
     );
-  }
-
-  Widget _buildFromLocal(AsyncValue<List<AnimeItemDto>> asyncLocal) {
-    final Widget? content = asyncLocal.whenOrNull(
-      data: (items) {
-        final candidates =
-            items.where((a) => a.coverUrl?.isNotEmpty == true).toList();
-        if (candidates.isEmpty) return null;
-        // Usa os últimos 3 animes locais como carrossel, ou 1 se só tiver 1
-        final carouselItems =
-            candidates.length > 3 ? candidates.sublist(candidates.length - 3) : [candidates.last];
-        return _buildCarousel(carouselItems);
-      },
-    );
-
-    if (asyncLocal.isLoading) return const FeaturedSectionSkeleton();
-    if (content == null) return const SizedBox.shrink();
-    return content;
   }
 
   Widget _buildCarousel(List<AnimeItemDto> animes) {
