@@ -450,68 +450,54 @@ if ($sqlInDocker) {
 
 Write-Ok "API: will ALWAYS be recreated to use the latest code."
 
-# Real-ESRGAN container (used by image upscale). If already running, skip; otherwise we will start it.
-$skipRealesrgan    = $false
-$realesrganError   = $null
-$RealesrganPort    = 8000
+# Real-ESRGAN is ALWAYS recreated (latest code + user-selected mode)
+$realesrganError     = $null
+$RealesrganPort      = 8000
 $RealesrganContainer = 'realesrgan'
-try {
-    if (Test-ContainerRunning 'realesrgan') {
-        Write-Ok "Real-ESRGAN: container 'realesrgan' is already running - will SKIP."
-        $skipRealesrgan = $true
-    } else {
-        Write-Ok "Real-ESRGAN: will START (build may take a few minutes on first run)."
-    }
-} catch {
-    # Defensive: do not fail the whole script if detection has an issue
-    Write-Warn "Could not determine Real-ESRGAN container state. Will attempt to start if not present."
-}
+Write-Ok "Real-ESRGAN: will ALWAYS be recreated."
 
 # =========================================================================
-# STEP 2.5 - Detect GPU availability for Real-ESRGAN
+# STEP 2.5 - User selects GPU or CPU mode for Real-ESRGAN
 # =========================================================================
 $gpuAvailable    = $false
 $gpuNote         = $null
 $gpuComposeFile  = Join-Path $repoRoot 'docker-compose.gpu.yml'
 
-if (-not $skipRealesrgan) {
-    Write-Step "Detecting GPU availability for Real-ESRGAN..."
+Write-Host ""
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host " REAL-ESRGAN - Selecione o modo de upscaling:" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  [1] GPU  - Usa NVIDIA GPU (requer placa de video NVIDIA + drivers)" -ForegroundColor Green
+Write-Host "  [2] CPU  - Usa CPU (compativel com qualquer maquina)" -ForegroundColor Yellow
+Write-Host ""
+$modeChoice = Read-Host "  Escolha [1/2] (padrao: 2 CPU)"
 
-    if (-not (Test-Wsl2Available)) {
-        $gpuNote = "WSL 2 nao detectado. GPU passthrough requer WSL 2."
-        Write-Warn $gpuNote
-    } elseif (-not (Test-NvidiaGpuOnHost)) {
-        $gpuNote = "NVIDIA GPU/driver nao detectado no host (nvidia-smi nao encontrado ou falhou)."
-        Write-Warn $gpuNote
+if ($modeChoice -eq '1') {
+    Write-Ok "Modo GPU selecionado pelo usuario."
+    # Verify GPU is actually available before proceeding
+    Write-Step "Verificando disponibilidade da GPU..."
+    if (-not (Test-NvidiaGpuOnHost)) {
+        Write-Warn "GPU NVIDIA nao detectada no host (nvidia-smi falhou ou nao encontrado)."
+        Write-Warn "Sera usado modo CPU automaticamente."
+        $gpuNote = "GPU NVIDIA nao detectada (nvidia-smi falhou ou nao encontrado)."
+    } elseif (-not (Test-DockerGpuSupport)) {
+        Write-Warn "GPU nao acessivel dentro do Docker."
+        Write-Warn "Sera usado modo CPU automaticamente."
+        $gpuNote = "GPU detectada no host mas nao acessivel dentro do container Docker."
     } else {
-        Write-Host "    Verificando runtime NVIDIA no Docker (verificacao rapida via docker info)..." -ForegroundColor DarkGray
-        if (Test-DockerGpuSupport) {
-            $gpuAvailable = $true
-            Write-Ok "GPU NVIDIA detectada e funcionando dentro do Docker!"
-        } else {
-            $gpuNote = "Runtime NVIDIA nao detectado no Docker."
-            Write-Warn $gpuNote
-            Write-Warn "Tentando configurar automaticamente..."
-            # Attempt automatic setup (install toolkit or guide user)
-            $setupOk = Invoke-NvidiaToolkitSetup
-            if ($setupOk) {
-                $gpuAvailable = $true
-                $gpuNote = $null
-                Write-Ok "GPU configurada com sucesso!"
-            } else {
-                Write-Warn "Configuracao automatica nao foi possivel. Real-ESRGAN usara modo CPU."
-            }
-        }
-    }
-
-    if ($gpuAvailable) {
-        Write-Ok "Real-ESRGAN usara modo GPU (RTX detectada)."
-    } else {
-        Write-Warn "Real-ESRGAN usara modo CPU (Pillow Lanczos). Qualidade sera inferior ao modo GPU."
+        $gpuAvailable = $true
+        Write-Ok "GPU NVIDIA verificada e acessivel! Real-ESRGAN usara modo GPU."
     }
 } else {
-    Write-Host "    GPU detection skipped (Real-ESRGAN already running)." -ForegroundColor DarkGray
+    Write-Ok "Modo CPU selecionado pelo usuario."
+    $gpuNote = "CPU selecionado manualmente pelo usuario."
 }
+
+if (-not $gpuAvailable) {
+    Write-Ok "Real-ESRGAN sera iniciado em modo CPU."
+}
+Write-Host ""
 
 # =========================================================================
 # STEP 3 - Start services via Docker Compose
@@ -528,6 +514,17 @@ if (Test-ContainerRunning $LibreContainer) {
 } else {
     Write-Warn "LibreTranslate container not detected. Translation endpoint may be unavailable."
     $skipLibre = $false
+}
+
+# --- Pre-cleanup: remove stale containers that will be recreated ----------
+# This avoids "name already in use" errors when the container was created
+# by another compose file or manually.
+foreach ($ctr in @($ApiContainer, $RealesrganContainer)) {
+    $exists = docker ps -a --filter "name=^${ctr}$" --format '{{.Names}}' 2>$null
+    if ($exists -and ($exists.Trim() -eq $ctr)) {
+        Write-Host "    Removing stale container: $ctr" -ForegroundColor DarkGray
+        docker rm -f $ctr 2>&1 | Out-Null
+    }
 }
 
 # Build core services list (without realesrgan — started separately for resilience)
@@ -579,94 +576,92 @@ if ($composeExit -ne 0) {
 Write-Ok "Core services started successfully."
 
 # --- Start Real-ESRGAN separately (non-blocking on failure) ---
-if (-not $skipRealesrgan) {
-    $gpuLabel = 'CPU fallback'
-    if ($gpuAvailable) { $gpuLabel = 'GPU' }
-    Write-Step "Starting Real-ESRGAN service in $gpuLabel mode (build may take a few minutes on first run)..."
+$gpuLabel = 'CPU'
+if ($gpuAvailable) { $gpuLabel = 'GPU' }
+Write-Step "Starting Real-ESRGAN service in $gpuLabel mode (build may take a few minutes on first run)..."
 
-    if ($composeMode -eq 'plugin') {
-        $esrganArgs = @('compose', '-f', $composeFile)
-        if ($gpuAvailable) { $esrganArgs += '-f'; $esrganArgs += $gpuComposeFile }
-        $esrganArgs += @('up', '-d', '--no-deps', '--build', '--force-recreate', 'realesrgan')
-        $esrganExe = 'docker'
-    } else {
-        $esrganArgs = @('-f', $composeFile)
-        if ($gpuAvailable) { $esrganArgs += '-f'; $esrganArgs += $gpuComposeFile }
-        $esrganArgs += @('up', '-d', '--no-deps', '--build', '--force-recreate', 'realesrgan')
-        $esrganExe = 'docker-compose'
-    }
+if ($composeMode -eq 'plugin') {
+    $esrganArgs = @('compose', '-f', $composeFile)
+    if ($gpuAvailable) { $esrganArgs += '-f'; $esrganArgs += $gpuComposeFile }
+    $esrganArgs += @('up', '-d', '--no-deps', '--build', '--force-recreate', 'realesrgan')
+    $esrganExe = 'docker'
+} else {
+    $esrganArgs = @('-f', $composeFile)
+    if ($gpuAvailable) { $esrganArgs += '-f'; $esrganArgs += $gpuComposeFile }
+    $esrganArgs += @('up', '-d', '--no-deps', '--build', '--force-recreate', 'realesrgan')
+    $esrganExe = 'docker-compose'
+}
 
-    Push-Location $repoRoot
-    try {
-        $esrganOutput = & $esrganExe @esrganArgs 2>&1
-        $esrganExit = $LASTEXITCODE
-        if ($esrganExit -ne 0) {
-            $realesrganError = "Compose exited with code $esrganExit for realesrgan service."
-            Write-Warn $realesrganError
-
-            # Check if the error is GPU-related — retry without GPU overlay
-            $esrganErrText = ($esrganOutput | Out-String)
-            $isGpuError = ($esrganErrText -match 'nvidia-container-cli' -or
-                           $esrganErrText -match 'no adapters were found' -or
-                           $esrganErrText -match 'could not select device driver' -or
-                           $esrganErrText -match 'OCI runtime create failed')
-
-            if ($isGpuError -and $gpuAvailable) {
-                Write-Warn 'Erro de GPU detectado ao criar container. Retentando em modo CPU...'
-                $gpuAvailable = $false
-                $gpuNote = 'Falha ao iniciar com GPU. Fallback automatico para CPU.'
-
-                # Rebuild args without GPU compose file
-                if ($composeMode -eq 'plugin') {
-                    $esrganArgs = @('compose', '-f', $composeFile)
-                    $esrganArgs += @('up', '-d', '--no-deps', '--build', '--force-recreate', 'realesrgan')
-                    $esrganExe = 'docker'
-                } else {
-                    $esrganArgs = @('-f', $composeFile)
-                    $esrganArgs += @('up', '-d', '--no-deps', '--build', '--force-recreate', 'realesrgan')
-                    $esrganExe = 'docker-compose'
-                }
-
-                $esrganOutput2 = & $esrganExe @esrganArgs 2>&1
-                $esrganExit2 = $LASTEXITCODE
-                if ($esrganExit2 -eq 0) {
-                    $realesrganError = $null
-                    Write-Ok 'Real-ESRGAN iniciado em modo CPU (fallback automatico).'
-                } else {
-                    $realesrganError = "Fallback CPU tambem falhou (exit $esrganExit2)."
-                    Write-Fail $realesrganError
-                }
-            }
-        } else {
-            Write-Ok "Real-ESRGAN service started."
-        }
-    } catch {
-        $realesrganError = "Exception starting realesrgan: $_"
+Push-Location $repoRoot
+try {
+    $esrganOutput = & $esrganExe @esrganArgs 2>&1
+    $esrganExit = $LASTEXITCODE
+    if ($esrganExit -ne 0) {
+        $realesrganError = "Compose exited with code $esrganExit for realesrgan service."
         Write-Warn $realesrganError
-    } finally {
-        Pop-Location
-    }
 
-    # Post-start verification: sometimes compose emits build messages but the
-    # container still comes up. If we recorded an error, double-check the
-    # container and health endpoint and clear the error if healthy.
-    if ($realesrganError) {
-        Start-Sleep -Seconds 3
-        if (Test-ContainerRunning $RealesrganContainer) {
-            $esrganHealthy = $false
-            try {
-                $esrganHealthy = Wait-ForEndpoint ("http://localhost:${RealesrganPort}/health") 10 "Real-ESRGAN"
-            } catch { $esrganHealthy = $false }
+        # Check if the error is GPU-related — retry without GPU overlay
+        $esrganErrText = ($esrganOutput | Out-String)
+        $isGpuError = ($esrganErrText -match 'nvidia-container-cli' -or
+                       $esrganErrText -match 'no adapters were found' -or
+                       $esrganErrText -match 'could not select device driver' -or
+                       $esrganErrText -match 'OCI runtime create failed')
 
-            if ($esrganHealthy) {
-                $realesrganError = $null
-                Write-Ok "Real-ESRGAN service started and health endpoint is responding."
+        if ($isGpuError -and $gpuAvailable) {
+            Write-Warn 'Erro de GPU detectado ao criar container. Retentando em modo CPU...'
+            $gpuAvailable = $false
+            $gpuNote = 'Falha ao iniciar com GPU. Fallback automatico para CPU.'
+
+            # Rebuild args without GPU compose file
+            if ($composeMode -eq 'plugin') {
+                $esrganArgs = @('compose', '-f', $composeFile)
+                $esrganArgs += @('up', '-d', '--no-deps', '--build', '--force-recreate', 'realesrgan')
+                $esrganExe = 'docker'
             } else {
-                Write-Warn "Real-ESRGAN container is running but health endpoint did not respond within 10s."
+                $esrganArgs = @('-f', $composeFile)
+                $esrganArgs += @('up', '-d', '--no-deps', '--build', '--force-recreate', 'realesrgan')
+                $esrganExe = 'docker-compose'
             }
-        } else {
-            Write-Warn "Real-ESRGAN container not running after compose attempt."
+
+            $esrganOutput2 = & $esrganExe @esrganArgs 2>&1
+            $esrganExit2 = $LASTEXITCODE
+            if ($esrganExit2 -eq 0) {
+                $realesrganError = $null
+                Write-Ok 'Real-ESRGAN iniciado em modo CPU (fallback automatico).'
+            } else {
+                $realesrganError = "Fallback CPU tambem falhou (exit $esrganExit2)."
+                Write-Fail $realesrganError
+            }
         }
+    } else {
+        Write-Ok "Real-ESRGAN service started."
+    }
+} catch {
+    $realesrganError = "Exception starting realesrgan: $_"
+    Write-Warn $realesrganError
+} finally {
+    Pop-Location
+}
+
+# Post-start verification: sometimes compose emits build messages but the
+# container still comes up. If we recorded an error, double-check the
+# container and health endpoint and clear the error if healthy.
+if ($realesrganError) {
+    Start-Sleep -Seconds 3
+    if (Test-ContainerRunning $RealesrganContainer) {
+        $esrganHealthy = $false
+        try {
+            $esrganHealthy = Wait-ForEndpoint ("http://localhost:${RealesrganPort}/health") 10 "Real-ESRGAN"
+        } catch { $esrganHealthy = $false }
+
+        if ($esrganHealthy) {
+            $realesrganError = $null
+            Write-Ok "Real-ESRGAN service started and health endpoint is responding."
+        } else {
+            Write-Warn "Real-ESRGAN container is running but health endpoint did not respond within 10s."
+        }
+    } else {
+        Write-Warn "Real-ESRGAN container not running after compose attempt."
     }
 }
 
@@ -825,9 +820,7 @@ Write-Host ("  API:            {0}" -f $apiStatus)
 
 # Real-ESRGAN status
 $esrganStatus = 'NOT RUNNING'
-if ($skipRealesrgan) {
-    $esrganStatus = 'SKIPPED (pre-existing)'
-} elseif ($realesrganError) {
+if ($realesrganError) {
     $esrganStatus = 'FAILED'
 } elseif (Test-ContainerRunning $RealesrganContainer) {
     $modeLabel = 'CPU'
@@ -859,7 +852,7 @@ if ($realesrganError) {
 }
 
 # Show GPU info banner when running in CPU fallback mode
-if (-not $skipRealesrgan -and -not $realesrganError -and -not $gpuAvailable) {
+if (-not $realesrganError -and -not $gpuAvailable) {
     Write-Host ""
     Write-Host "  [INFO GPU]" -ForegroundColor Yellow
     Write-Host "  GPU NVIDIA nao disponivel para o container de upscaling." -ForegroundColor Yellow
