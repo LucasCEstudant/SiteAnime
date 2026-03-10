@@ -12,11 +12,20 @@ import '../../features/auth/data/auth_remote_datasource.dart';
 /// Em containers Docker é vazio (nginx faz proxy reverso para /api).
 /// Em desenvolvimento local usa http://localhost:7118.
 /// Configurável via --dart-define=API_BASE_URL=...
-const String kApiBaseUrl = String.fromEnvironment(
+const String _kConfiguredApiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://localhost:7118',
+  defaultValue: '',
 );
-const String _kBaseUrl = kApiBaseUrl;
+
+String get kApiBaseUrl {
+  if (_kConfiguredApiBaseUrl.isNotEmpty) return _kConfiguredApiBaseUrl;
+
+  // Em release web, usa URL relativa para evitar localhost hardcoded.
+  if (kIsWeb && kReleaseMode) return '';
+
+  // Fallback para desenvolvimento local.
+  return 'http://localhost:7118';
+}
 
 /// Timeout padrão para requests.
 const Duration _kConnectTimeout = Duration(seconds: 10);
@@ -59,7 +68,7 @@ class ApiClient {
   ApiClient({String? baseUrl})
       : _dio = Dio(
           BaseOptions(
-            baseUrl: baseUrl ?? _kBaseUrl,
+            baseUrl: baseUrl ?? kApiBaseUrl,
             connectTimeout: _kConnectTimeout,
             receiveTimeout: _kReceiveTimeout,
             headers: {

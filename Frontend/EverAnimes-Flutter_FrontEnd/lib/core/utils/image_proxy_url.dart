@@ -11,7 +11,9 @@ String? proxyImageUrl(String? remoteUrl) {
   if (remoteUrl == null || remoteUrl.isEmpty) return remoteUrl;
 
   // Already pointing at our own API — no need to proxy.
-  if (remoteUrl.startsWith(kApiBaseUrl)) return remoteUrl;
+  if (kApiBaseUrl.isNotEmpty && remoteUrl.startsWith(kApiBaseUrl)) {
+    return remoteUrl;
+  }
 
   // Only proxy http(s) URLs.
   final uri = Uri.tryParse(remoteUrl);
@@ -19,5 +21,7 @@ String? proxyImageUrl(String? remoteUrl) {
     return remoteUrl;
   }
 
-  return '$kApiBaseUrl/api/image-proxy?url=${Uri.encodeComponent(remoteUrl)}';
+  final apiBase = kApiBaseUrl;
+  final proxyBase = apiBase.isEmpty ? '' : apiBase;
+  return '$proxyBase/api/image-proxy?url=${Uri.encodeComponent(remoteUrl)}';
 }
