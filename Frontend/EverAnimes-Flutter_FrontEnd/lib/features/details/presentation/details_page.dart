@@ -446,17 +446,6 @@ class _DetailsTitleBlock extends ConsumerWidget {
           const SizedBox(height: AppSpacing.sm),
         ],
 
-        if (details.synopsis != null && details.synopsis!.isNotEmpty) ...[
-          TranslatableText(
-            text: details.synopsis!,
-            style: AppTextStyles.body,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            selectable: true,
-          ),
-          const SizedBox(height: AppSpacing.md),
-        ],
-
         // Actions
         Row(
           children: [
@@ -564,7 +553,7 @@ class _DetailsTabMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final tabs = [
-      (_DetailsTab.overview, l10n.overview),
+      (_DetailsTab.overview, l10n.adminAnimesSynopsis),
       (_DetailsTab.episodes, l10n.episodes),
       (_DetailsTab.links, l10n.links),
       (_DetailsTab.similar, l10n.similar),

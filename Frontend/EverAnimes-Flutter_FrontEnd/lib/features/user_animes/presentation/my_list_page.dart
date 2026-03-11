@@ -299,6 +299,13 @@ class _MyListPageState extends ConsumerState<MyListPage> {
 
     return Scaffold(
       backgroundColor: AppColors.bgBase,
+      bottomNavigationBar: _editorMode
+          ? _EditorActionBar(
+              selectedCount: _selectedIds.length,
+              onDelete: _batchDelete,
+              onChangeStatus: _batchChangeStatus,
+            )
+          : null,
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
@@ -317,7 +324,7 @@ class _MyListPageState extends ConsumerState<MyListPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Row 1: Title + Editor toggle + Status filter
+                  // Row 1: Title + Editor toggle
                   Row(
                     children: [
                       Text(
@@ -337,76 +344,122 @@ class _MyListPageState extends ConsumerState<MyListPage> {
                         ),
                         tooltip: _editorMode ? l10n.myListExitEditor : l10n.myListEditorMode,
                       ),
-                      const Spacer(),
-                      _StatusFilterDropdown(
-                        value: _selectedStatus,
-                        onChanged: _onStatusChanged,
-                      ),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.sm),
 
-                  // Row 2: Name search + Year + Sort
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: SizedBox(
-                          height: 36,
-                          child: TextField(
-                            onChanged: (v) => setState(() => _nameFilter = v),
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 13,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: l10n.headerSearchHint,
-                              hintStyle: const TextStyle(
-                                color: AppColors.textSecondary,
+                  // Row 2: Horizontal toolbar (search + filters)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface.withAlpha(175),
+                      borderRadius: BorderRadius.circular(AppRadius.card),
+                      border: Border.all(
+                        color: AppColors.surfaceVariant.withAlpha(150),
+                      ),
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: MediaQuery.of(context).size.width < 620
+                                ? 220
+                                : 320,
+                            height: 40,
+                            child: TextField(
+                              onChanged: (v) => setState(() => _nameFilter = v),
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
                                 fontSize: 13,
                               ),
-                              prefixIcon: const Icon(Icons.search,
-                                  color: AppColors.textSecondary, size: 18),
-                              filled: true,
-                              fillColor: AppColors.surface,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(horizontal: 12),
-                              border: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.btn),
-                                borderSide: BorderSide.none,
+                              decoration: InputDecoration(
+                                hintText: l10n.headerSearchHint,
+                                hintStyle: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 13,
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.search,
+                                  color: AppColors.textSecondary,
+                                  size: 18,
+                                ),
+                                filled: true,
+                                fillColor: AppColors.bgBase,
+                                contentPadding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.btn),
+                                  borderSide: BorderSide.none,
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                          const SizedBox(width: AppSpacing.sm),
+                          SizedBox(
+                            width: 150,
+                            child: _StatusFilterDropdown(
+                              value: _selectedStatus,
+                              onChanged: _onStatusChanged,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          SizedBox(
+                            width: 110,
+                            child: _YearFilterChip(
+                              value: _yearFilter,
+                              onChanged: (y) {
+                                _yearFilter = y;
+                                _resetAndReload();
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          SizedBox(
+                            width: 180,
+                            child: _SortDropdown(
+                              value: _sortMode,
+                              onChanged: (m) => setState(() => _sortMode = m),
+                            ),
+                          ),
+                          if (_editorMode) ...[
+                            const SizedBox(width: AppSpacing.sm),
+                            SizedBox(
+                              height: 40,
+                              child: OutlinedButton.icon(
+                                onPressed: _selectAll,
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                    color: AppColors.accent.withAlpha(180),
+                                  ),
+                                  foregroundColor: AppColors.accent,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                  ),
+                                ),
+                                icon: Icon(
+                                  _selectedIds.length == filtered.length
+                                      ? Icons.deselect
+                                      : Icons.select_all,
+                                  size: 18,
+                                ),
+                                label: Text(
+                                  _selectedIds.length == filtered.length
+                                      ? l10n.myListDeselectAll
+                                      : l10n.myListSelectAll,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                      const SizedBox(width: AppSpacing.sm),
-                      _YearFilterChip(
-                        value: _yearFilter,
-                        onChanged: (y) {
-                          _yearFilter = y;
-                          _resetAndReload();
-                        },
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      _SortDropdown(
-                        value: _sortMode,
-                        onChanged: (m) => setState(() => _sortMode = m),
-                      ),
-                    ],
-                  ),
-
-                  // Row 3: Editor actions
-                  if (_editorMode) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    _EditorActionBar(
-                      selectedCount: _selectedIds.length,
-                      totalCount: filtered.length,
-                      onSelectAll: _selectAll,
-                      onDelete: _batchDelete,
-                      onChangeStatus: _batchChangeStatus,
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
@@ -694,6 +747,26 @@ class _MyListCardState extends State<_MyListCard> {
               ? Matrix4.diagonal3Values(1.04, 1.04, 1.0)
               : Matrix4.identity(),
           transformAlignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: widget.editorMode
+                ? Border.all(
+                    color: widget.selected
+                        ? AppColors.accent
+                        : AppColors.surfaceVariant.withAlpha(120),
+                    width: widget.selected ? 2.2 : 1,
+                  )
+                : null,
+            boxShadow: widget.editorMode && widget.selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.accent.withAlpha(120),
+                      blurRadius: 14,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : null,
+          ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.card),
             child: Stack(
@@ -849,20 +922,35 @@ class _MyListCardState extends State<_MyListCard> {
                   Positioned.fill(
                     child: Container(
                       color: widget.selected
-                          ? AppColors.accent.withAlpha(60)
+                          ? Colors.black.withAlpha(35)
                           : Colors.transparent,
                       child: Align(
                         alignment: Alignment.topLeft,
                         child: Padding(
                           padding: const EdgeInsets.all(6),
-                          child: Icon(
-                            widget.selected
-                                ? Icons.check_circle
-                                : Icons.radio_button_unchecked,
-                            color: widget.selected
-                                ? AppColors.accent
-                                : AppColors.textSecondary,
-                            size: 22,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: widget.selected
+                                  ? AppColors.accent
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color: widget.selected
+                                    ? AppColors.accent
+                                    : AppColors.textSecondary,
+                                width: 1.4,
+                              ),
+                            ),
+                            child: widget.selected
+                                ? const Icon(
+                                    Icons.check,
+                                    size: 12,
+                                    color: AppColors.textPrimary,
+                                  )
+                                : null,
                           ),
                         ),
                       ),
@@ -1015,82 +1103,112 @@ class _SortDropdown extends StatelessWidget {
 class _EditorActionBar extends StatelessWidget {
   const _EditorActionBar({
     required this.selectedCount,
-    required this.totalCount,
-    required this.onSelectAll,
     required this.onDelete,
     required this.onChangeStatus,
   });
 
   final int selectedCount;
-  final int totalCount;
-  final VoidCallback onSelectAll;
   final VoidCallback onDelete;
   final ValueChanged<String> onChangeStatus;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.btn),
-        border: Border.all(color: AppColors.accent.withAlpha(80)),
-      ),
-      child: Row(
-        children: [
-          // Select all / deselect
-          TextButton.icon(
-            onPressed: onSelectAll,
-            icon: Icon(
-              selectedCount == totalCount
-                  ? Icons.deselect
-                  : Icons.select_all,
-              size: 16,
-              color: AppColors.accent,
-            ),
-            label: Text(
-              selectedCount == totalCount ? l10n.myListDeselectAll : l10n.myListSelectAll,
-              style: const TextStyle(color: AppColors.accent, fontSize: 12),
-            ),
+    final isMobile = MediaQuery.of(context).size.width < 640;
+    final deleteIconSize = isMobile ? 24.0 : 28.0;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 12 : 18,
+          vertical: isMobile ? 10 : 12,
+        ),
+        decoration: const BoxDecoration(
+          color: AppColors.accent,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(AppRadius.card),
+            topRight: Radius.circular(AppRadius.card),
           ),
-
-          // Count
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            l10n.myListSelectedCount(selectedCount),
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                l10n.myListSelectedCount(selectedCount),
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-          ),
-
-          const Spacer(),
-
-          // Change status popup
-          if (selectedCount > 0) ...[
-            PopupMenuButton<String>(
-              tooltip: l10n.myListChangeStatus,
-              icon: const Icon(Icons.swap_horiz,
-                  color: AppColors.textPrimary, size: 18),
-              color: AppColors.surface,
-              onSelected: onChangeStatus,
-              itemBuilder: (_) => [
-                PopupMenuItem(value: 'watching', child: Text(l10n.myListStatusWatching)),
-                PopupMenuItem(value: 'completed', child: Text(l10n.myListStatusCompleted)),
-                PopupMenuItem(value: 'plan-to-watch', child: Text(l10n.myListStatusPlanToWatch)),
-                PopupMenuItem(value: 'dropped', child: Text(l10n.myListStatusDropped)),
+            Wrap(
+              spacing: 10,
+              children: [
+                PopupMenuButton<String>(
+                  tooltip: l10n.myListChangeStatus,
+                  enabled: selectedCount > 0,
+                  color: AppColors.surface,
+                  onSelected: onChangeStatus,
+                  itemBuilder: (_) => [
+                    PopupMenuItem(value: 'watching', child: Text(l10n.myListStatusWatching)),
+                    PopupMenuItem(value: 'completed', child: Text(l10n.myListStatusCompleted)),
+                    PopupMenuItem(value: 'plan-to-watch', child: Text(l10n.myListStatusPlanToWatch)),
+                    PopupMenuItem(value: 'dropped', child: Text(l10n.myListStatusDropped)),
+                  ],
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.textPrimary,
+                      borderRadius: BorderRadius.circular(AppRadius.btn),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.swap_horiz,
+                          color: AppColors.accent,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          l10n.myListChangeStatus,
+                          style: const TextStyle(
+                            color: AppColors.accent,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Material(
+                  color: AppColors.textPrimary,
+                  borderRadius: BorderRadius.circular(AppRadius.btn),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.btn),
+                    onTap: selectedCount > 0 ? onDelete : null,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 14 : 16,
+                        vertical: isMobile ? 9 : 10,
+                      ),
+                      child: Icon(
+                        Icons.delete_outline,
+                        color: AppColors.accent,
+                        size: deleteIconSize,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(width: AppSpacing.xs),
-            IconButton(
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline,
-                  color: AppColors.accent, size: 18),
-              tooltip: l10n.remove,
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
