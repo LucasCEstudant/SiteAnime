@@ -491,7 +491,12 @@ class _AddToListButtonView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.sizeOf(context).width < 768;
+
     if (compact) {
+      final compactIconSize = isMobile ? 14.0 : 16.0;
+      final compactMinHeight = isMobile ? 24.0 : 28.0;
+
       return OutlinedButton(
         onPressed: busy ? null : onTap,
         style: OutlinedButton.styleFrom(
@@ -500,20 +505,30 @@ class _AddToListButtonView extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.btn),
           ),
-          padding:
-              const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
-          minimumSize: const Size(0, 24),
+          padding: EdgeInsets.symmetric(
+            horizontal: isMobile ? AppSpacing.sm : AppSpacing.md,
+            vertical: isMobile ? 2 : 4,
+          ),
+          minimumSize: Size(0, compactMinHeight),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         child: busy
-            ? const SizedBox(
-                width: 14,
-                height: 14,
+            ? SizedBox(
+                width: compactIconSize,
+                height: compactIconSize,
                 child: CircularProgressIndicator(strokeWidth: 1.5),
               )
-            : const Icon(Icons.add, size: 14, color: AppColors.textPrimary),
+            : Icon(
+                Icons.add,
+                size: compactIconSize,
+                color: AppColors.textPrimary,
+              ),
       );
     }
+
+    final iconSize = isMobile ? 16.0 : 18.0;
+    final spinnerSize = isMobile ? 16.0 : 18.0;
+
     return OutlinedButton.icon(
       onPressed: busy ? null : onTap,
       style: OutlinedButton.styleFrom(
@@ -522,21 +537,23 @@ class _AddToListButtonView extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.btn),
         ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? AppSpacing.sm : AppSpacing.md,
+          vertical: isMobile ? AppSpacing.xs : AppSpacing.sm,
         ),
       ),
       icon: busy
-          ? const SizedBox(
-              width: 18,
-              height: 18,
+          ? SizedBox(
+              width: spinnerSize,
+              height: spinnerSize,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
-          : const Icon(Icons.add_circle_outline, size: 18),
+          : Icon(Icons.add_circle_outline, size: iconSize),
       label: Text(
         AppLocalizations.of(context)!.homeAddToList,
-        style: AppTextStyles.btn,
+        style: isMobile
+            ? AppTextStyles.btn.copyWith(fontSize: 12)
+            : AppTextStyles.btn,
       ),
     );
   }
