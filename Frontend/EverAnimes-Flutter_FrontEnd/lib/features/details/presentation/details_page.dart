@@ -393,11 +393,10 @@ class _DetailsTitleBlock extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: Text(
+              child: SelectableText(
                 details.title,
                 style: AppTextStyles.titleHero,
                 maxLines: 3,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
             if (isAdmin)
@@ -453,6 +452,7 @@ class _DetailsTitleBlock extends ConsumerWidget {
             style: AppTextStyles.body,
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
+            selectable: true,
           ),
           const SizedBox(height: AppSpacing.md),
         ],

@@ -257,10 +257,9 @@ class _HeroInfoPanel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // Título
-        Text(
+        SelectableText(
           anime.title,
           maxLines: 2,
-          overflow: TextOverflow.ellipsis,
           style: isMobile
               ? AppTextStyles.titleHero.copyWith(fontSize: 22)
               : AppTextStyles.titleHero,
