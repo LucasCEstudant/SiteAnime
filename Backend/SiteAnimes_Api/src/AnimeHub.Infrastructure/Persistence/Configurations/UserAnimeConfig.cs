@@ -17,7 +17,7 @@ public class UserAnimeConfig : IEntityTypeConfiguration<UserAnime>
         b.Property(x => x.CoverUrl).HasMaxLength(500);
         b.Property(x => x.Status).HasMaxLength(20);
         b.Property(x => x.Notes).HasMaxLength(2000);
-        b.Property(x => x.Score).HasPrecision(4, 2).HasColumnType("decimal(4,2)");
+        b.Property(x => x.Score).HasPrecision(4, 2);
 
         b.HasOne(x => x.User)
          .WithMany()

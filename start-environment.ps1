@@ -59,11 +59,28 @@ if (-not (Test-Path $baseCompose)) {
 }
 
 $useGpu = $false
-if ((Test-Path $gpuCompose) -and (Test-NvidiaRuntime)) {
-    $useGpu = $true
-    Write-Ok 'NVIDIA runtime detected. Real-ESRGAN will run with GPU reservation.'
+$gpuAvailable = (Test-Path $gpuCompose) -and (Test-NvidiaRuntime)
+
+if ($gpuAvailable) {
+    Write-Ok 'NVIDIA runtime detected.'
+    Write-Host ''
+    Write-Host '  How should Real-ESRGAN run?' -ForegroundColor Yellow
+    Write-Host '    1) GPU  (faster, uses NVIDIA CUDA)'            -ForegroundColor White
+    Write-Host '    2) CPU  (slower, no GPU required)'             -ForegroundColor White
+    Write-Host ''
+    do {
+        $choice = Read-Host '  Choose [1/2] (default=1)'
+        if ([string]::IsNullOrWhiteSpace($choice)) { $choice = '1' }
+    } while ($choice -notin @('1','2'))
+
+    if ($choice -eq '1') {
+        $useGpu = $true
+        Write-Ok 'Real-ESRGAN will run with GPU reservation.'
+    } else {
+        Write-Ok 'Real-ESRGAN will run in CPU mode.'
+    }
 } else {
-    Write-Warn 'NVIDIA runtime not detected (or GPU override file missing). Real-ESRGAN will run in auto mode with CPU fallback.'
+    Write-Warn 'NVIDIA runtime not detected (or GPU override file missing). Real-ESRGAN will run in CPU mode.'
 }
 
 $composeArgs = @('-f', $baseCompose)

@@ -3,18 +3,29 @@ volumes:
     name: libretranslate_models
   libretranslate_cache:
     name: libretranslate_cache
+  postgres_data:
+    name: animehub_postgres_data
 
 services:
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: sqlserver-animehub
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-animehub
     profiles: ["withdb"]
     environment:
-      - ACCEPT_EULA=Y
-      - SA_PASSWORD=AnimeHub@2026!
+      - POSTGRES_USER=animehub
+      - POSTGRES_PASSWORD=AnimeHub@2026!
+      - POSTGRES_DB=AnimeHubDb
     ports:
-      - "1433:1433"
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U animehub -d AnimeHubDb"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
 
   # One-shot init: fix volume ownership for UID 1032 (LibreTranslate container user)
   # Reference: https://techoverflow.net/2025/05/26/how-to-fix-libretranslate-docker-permissionerror-errno-13-permission-denied-home-libretranslate-local-share-argos-translate/
@@ -65,7 +76,7 @@ services:
       dockerfile: ./src/AnimeHub.Api/Dockerfile
     container_name: animehub-api
     environment:
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=AnimeHubDb;User Id=sa;Password=AnimeHub@2026!;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Host=postgres-animehub;Port=5432;Database=AnimeHubDb;Username=animehub;Password=AnimeHub@2026!
       - ASPNETCORE_ENVIRONMENT=Development
       - Translation__BaseUrl=http://libretranslate:5000
       - Translation__TimeoutSeconds=60

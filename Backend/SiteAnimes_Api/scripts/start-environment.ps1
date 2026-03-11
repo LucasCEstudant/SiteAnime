@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-    Start the AnimeHub development environment (SQL Server, LibreTranslate, API, Real-ESRGAN).
+    Start the AnimeHub development environment (PostgreSQL, LibreTranslate, API, Real-ESRGAN).
 
 .DESCRIPTION
     - Checks Docker prerequisites (CLI + daemon).
-    - Detects existing services on ports 1433, 5000, 7118, 8000.
+    - Detects existing services on ports 5432, 5000, 7118, 8000.
     - LibreTranslate is started via imagem oficial (libretranslate/libretranslate),
       gerenciado pelo start-environment.bat antes deste script.
     - Starts/recreates core stack services from docker-compose.deploy.yml.
@@ -32,10 +32,10 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # -- Configuration -------------------------------------------------------
-$SqlPort          = 1433
+$DbPort           = 5432
 $LibrePort        = 5000
 $ApiPort          = 7118
-$SqlContainer     = 'sqlserver-animehub'
+$DbContainer      = 'postgres-animehub'
 $LibreContainer   = 'libretranslate'
 $ApiContainer     = 'animehub-api'
 $LibreHealthUrl   = "http://localhost:${LibrePort}/languages"
@@ -430,22 +430,45 @@ if (-not (Test-Path $composeFile)) {
 # =========================================================================
 Write-Step "Detecting existing services..."
 
-$sqlInDocker   = Test-PortUsedByDocker $SqlPort
+$dbInDocker   = Test-PortUsedByDocker $DbPort
 
-$sqlBusy   = $false
-if (-not $sqlInDocker) { $sqlBusy = Test-PortListening $SqlPort }
+$dbBusy   = $false
+if (-not $dbInDocker) { $dbBusy = Test-PortListening $DbPort }
 
-$skipSql   = $false
+$skipDb   = $false
 $skipLibre = $false
 
-if ($sqlInDocker) {
-    Write-Ok "SQL Server: port $SqlPort in use by a Docker container - will SKIP."
-    $skipSql = $true
-} elseif ($sqlBusy) {
-    Write-Warn "Port $SqlPort is in use by a NON-Docker process. Skipping sqlserver, but the API may fail to connect."
-    $skipSql = $true
+if ($dbInDocker) {
+    # Check if the container on that port is PostgreSQL or SQL Server
+    $dbContainerImage = ''
+    $runningContainers = docker ps --format '{{.Names}}|{{.Image}}|{{.Ports}}' 2>$null
+    foreach ($line in $runningContainers) {
+        if ($line -match "0\.0\.0\.0:${DbPort}->" -or $line -match ":::${DbPort}->") {
+            $parts = $line -split '\|'
+            $dbContainerImage = $parts[1]
+            $dbContainerName  = $parts[0]
+            break
+        }
+    }
+
+    if ($dbContainerImage -match 'mssql|sqlserver') {
+        Write-Warn "SQL Server detected on port $DbPort (container: $dbContainerName). Removing to replace with PostgreSQL..."
+        docker rm -f $dbContainerName 2>&1 | Out-Null
+        Write-Ok "SQL Server container removed."
+        $skipDb = $false
+    } elseif ($dbContainerImage -match 'postgres') {
+        Write-Ok "PostgreSQL: port $DbPort in use by Docker container ($dbContainerName) - will SKIP."
+        $skipDb = $true
+    } else {
+        Write-Ok "Database: port $DbPort in use by Docker container ($dbContainerName) - will SKIP."
+        $skipDb = $true
+    }
+} elseif ($dbBusy) {
+    Write-Warn "Port $DbPort is in use by a NON-Docker process. Skipping db, but the API may fail to connect."
+    Write-Warn "If this is not PostgreSQL, stop it and re-run this script."
+    $skipDb = $true
 } else {
-    Write-Ok "SQL Server: port $SqlPort is free - will START."
+    Write-Ok "PostgreSQL: port $DbPort is free - will START."
 }
 
 Write-Ok "API: will ALWAYS be recreated to use the latest code."
@@ -531,8 +554,8 @@ foreach ($ctr in @($ApiContainer, $RealesrganContainer)) {
 $services    = @()
 $needProfile = $false
 
-if (-not $skipSql) {
-    $services   += 'sqlserver'
+if (-not $skipDb) {
+    $services   += 'postgres'
     $needProfile = $true
 }
 # LibreTranslate runs independently via Docker Hub image (not in compose stack).
@@ -783,14 +806,14 @@ Write-Host "============================================================" -Foreg
 Write-Host " ENVIRONMENT SUMMARY" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 
-# SQL Server status
-$sqlStatus = 'NOT RUNNING'
-if ($skipSql) {
-    $sqlStatus = 'SKIPPED (pre-existing on port {0})' -f $SqlPort
-} elseif (Test-ContainerRunning $SqlContainer) {
-    $sqlStatus = 'RUNNING'
+# PostgreSQL status
+$dbStatus = 'NOT RUNNING'
+if ($skipDb) {
+    $dbStatus = 'SKIPPED (pre-existing on port {0})' -f $DbPort
+} elseif (Test-ContainerRunning $DbContainer) {
+    $dbStatus = 'RUNNING'
 }
-Write-Host ("  SQL Server:     {0}" -f $sqlStatus)
+Write-Host ("  PostgreSQL:     {0}" -f $dbStatus)
 
 # LibreTranslate status
 $libreStatus = 'NOT RUNNING'
@@ -909,9 +932,9 @@ if ((Test-ContainerRunning $LibreContainer) -and -not $libreReady) {
 
     WHAT HAPPENS:
       1. Docker daemon and compose are verified.
-      2. Ports 1433, 5000, 7118, 8000 are checked for existing services.
+      2. Ports 5432, 5000, 7118, 8000 are checked for existing services.
       3. LibreTranslate is started via Docker Hub image by start-environment.bat.
-      4. SQL Server and API are orchestrated by docker-compose.deploy.yml.
+      4. PostgreSQL and API are orchestrated by docker-compose.deploy.yml.
       5. API is always rebuilt and recreated.
       6. GPU NVIDIA is detected; Real-ESRGAN starts in GPU or CPU mode.
       7. Network integration status is displayed (anime-net).

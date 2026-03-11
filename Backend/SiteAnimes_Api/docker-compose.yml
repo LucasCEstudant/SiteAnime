@@ -20,7 +20,7 @@ services:
     depends_on:
       - libretranslate
     environment:
-      - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=AnimeHubDb;User Id=sa;Password=AnimeHub@2026!;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Host=host.docker.internal;Port=5432;Database=AnimeHubDb;Username=animehub;Password=AnimeHub@2026!
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80
       - Translation__BaseUrl=http://libretranslate:5000
