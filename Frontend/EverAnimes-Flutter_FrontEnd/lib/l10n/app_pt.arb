@@ -243,5 +243,29 @@
   "myListStatusCompleted": "Completo",
   "myListStatusPlanToWatch": "Planejo Assistir",
   "myListStatusDropped": "Abandonado",
-  "myListStatusOnHold": "Em Pausa"
+  "myListStatusOnHold": "Em Pausa",
+
+  "myListEditorMode": "Modo editor",
+  "myListExitEditor": "Sair do editor",
+  "myListSortAZ": "A → Z",
+  "myListSortZA": "Z → A",
+  "myListSortYearDesc": "Ano ↓",
+  "myListSortYearAsc": "Ano ↑",
+  "myListSortDateAdded": "Adicionados recentemente",
+  "myListSortDateUpdated": "Atualizados recentemente",
+  "myListSelectAll": "Selecionar tudo",
+  "myListDeselectAll": "Desmarcar",
+  "myListSelectedCount": "{count} selecionado(s)",
+  "@myListSelectedCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "myListChangeStatus": "Alterar status",
+  "myListItemsUpdated": "{count} item(ns) atualizado(s)",
+  "@myListItemsUpdated": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "myListUpdated": "Atualizado com sucesso",
+  "myListScore": "Nota (0–10)",
+  "myListEpisodesWatched": "Episódios assistidos",
+  "myListNotes": "Notas"
 }

@@ -674,4 +674,59 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get myListStatusOnHold => 'Em Pausa';
+
+  @override
+  String get myListEditorMode => 'Modo editor';
+
+  @override
+  String get myListExitEditor => 'Sair do editor';
+
+  @override
+  String get myListSortAZ => 'A → Z';
+
+  @override
+  String get myListSortZA => 'Z → A';
+
+  @override
+  String get myListSortYearDesc => 'Ano ↓';
+
+  @override
+  String get myListSortYearAsc => 'Ano ↑';
+
+  @override
+  String get myListSortDateAdded => 'Adicionados recentemente';
+
+  @override
+  String get myListSortDateUpdated => 'Atualizados recentemente';
+
+  @override
+  String get myListSelectAll => 'Selecionar tudo';
+
+  @override
+  String get myListDeselectAll => 'Desmarcar';
+
+  @override
+  String myListSelectedCount(int count) {
+    return '$count selecionado(s)';
+  }
+
+  @override
+  String get myListChangeStatus => 'Alterar status';
+
+  @override
+  String myListItemsUpdated(int count) {
+    return '$count item(ns) atualizado(s)';
+  }
+
+  @override
+  String get myListUpdated => 'Atualizado com sucesso';
+
+  @override
+  String get myListScore => 'Nota (0–10)';
+
+  @override
+  String get myListEpisodesWatched => 'Episódios assistidos';
+
+  @override
+  String get myListNotes => 'Notas';
 }

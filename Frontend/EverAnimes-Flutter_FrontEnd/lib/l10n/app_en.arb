@@ -229,5 +229,29 @@
   "myListStatusCompleted": "Completed",
   "myListStatusPlanToWatch": "Plan to Watch",
   "myListStatusDropped": "Dropped",
-  "myListStatusOnHold": "On Hold"
+  "myListStatusOnHold": "On Hold",
+
+  "myListEditorMode": "Editor mode",
+  "myListExitEditor": "Exit editor",
+  "myListSortAZ": "A → Z",
+  "myListSortZA": "Z → A",
+  "myListSortYearDesc": "Year ↓",
+  "myListSortYearAsc": "Year ↑",
+  "myListSortDateAdded": "Recently added",
+  "myListSortDateUpdated": "Recently updated",
+  "myListSelectAll": "Select all",
+  "myListDeselectAll": "Deselect",
+  "myListSelectedCount": "{count} selected",
+  "@myListSelectedCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "myListChangeStatus": "Change status",
+  "myListItemsUpdated": "{count} items updated",
+  "@myListItemsUpdated": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "myListUpdated": "Updated successfully",
+  "myListScore": "Score (0–10)",
+  "myListEpisodesWatched": "Episodes watched",
+  "myListNotes": "Notes"
 }

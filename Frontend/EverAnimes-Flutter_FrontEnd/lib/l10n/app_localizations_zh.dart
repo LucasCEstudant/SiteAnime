@@ -665,4 +665,59 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get myListStatusOnHold => '暂停';
+
+  @override
+  String get myListEditorMode => '编辑模式';
+
+  @override
+  String get myListExitEditor => '退出编辑';
+
+  @override
+  String get myListSortAZ => 'A → Z';
+
+  @override
+  String get myListSortZA => 'Z → A';
+
+  @override
+  String get myListSortYearDesc => '年份 ↓';
+
+  @override
+  String get myListSortYearAsc => '年份 ↑';
+
+  @override
+  String get myListSortDateAdded => '最近添加';
+
+  @override
+  String get myListSortDateUpdated => '最近更新';
+
+  @override
+  String get myListSelectAll => '全选';
+
+  @override
+  String get myListDeselectAll => '取消选择';
+
+  @override
+  String myListSelectedCount(int count) {
+    return '已选 $count 项';
+  }
+
+  @override
+  String get myListChangeStatus => '更改状态';
+
+  @override
+  String myListItemsUpdated(int count) {
+    return '已更新 $count 项';
+  }
+
+  @override
+  String get myListUpdated => '更新成功';
+
+  @override
+  String get myListScore => '评分 (0–10)';
+
+  @override
+  String get myListEpisodesWatched => '已看集数';
+
+  @override
+  String get myListNotes => '备注';
 }

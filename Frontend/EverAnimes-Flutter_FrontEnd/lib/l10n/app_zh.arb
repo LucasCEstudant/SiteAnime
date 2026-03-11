@@ -229,5 +229,29 @@
   "myListStatusCompleted": "已完成",
   "myListStatusPlanToWatch": "计划观看",
   "myListStatusDropped": "已弃坑",
-  "myListStatusOnHold": "暂停"
+  "myListStatusOnHold": "暂停",
+
+  "myListEditorMode": "编辑模式",
+  "myListExitEditor": "退出编辑",
+  "myListSortAZ": "A → Z",
+  "myListSortZA": "Z → A",
+  "myListSortYearDesc": "年份 ↓",
+  "myListSortYearAsc": "年份 ↑",
+  "myListSortDateAdded": "最近添加",
+  "myListSortDateUpdated": "最近更新",
+  "myListSelectAll": "全选",
+  "myListDeselectAll": "取消选择",
+  "myListSelectedCount": "已选 {count} 项",
+  "@myListSelectedCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "myListChangeStatus": "更改状态",
+  "myListItemsUpdated": "已更新 {count} 项",
+  "@myListItemsUpdated": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "myListUpdated": "更新成功",
+  "myListScore": "评分 (0–10)",
+  "myListEpisodesWatched": "已看集数",
+  "myListNotes": "备注"
 }

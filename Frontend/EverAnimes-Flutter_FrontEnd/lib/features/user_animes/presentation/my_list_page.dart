@@ -218,6 +218,7 @@ class _MyListPageState extends ConsumerState<MyListPage> {
 
   Future<void> _batchChangeStatus(String newStatus) async {
     if (_selectedIds.isEmpty) return;
+    final l10n = AppLocalizations.of(context)!;
     final updateFunc = ref.read(updateUserAnimeProvider);
     final dto = UserAnimeUpdateDto(status: newStatus);
     int successCount = 0;
@@ -228,7 +229,7 @@ class _MyListPageState extends ConsumerState<MyListPage> {
     _selectedIds.clear();
     _resetAndReload();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$successCount items updated')),
+      SnackBar(content: Text(l10n.myListItemsUpdated(successCount))),
     );
   }
 
@@ -293,7 +294,7 @@ class _MyListPageState extends ConsumerState<MyListPage> {
                               : AppColors.textSecondary,
                           size: 20,
                         ),
-                        tooltip: _editorMode ? 'Exit editor' : 'Editor mode',
+                        tooltip: _editorMode ? l10n.myListExitEditor : l10n.myListEditorMode,
                       ),
                       const Spacer(),
                       _StatusFilterDropdown(
@@ -511,6 +512,7 @@ class _MyListPageState extends ConsumerState<MyListPage> {
   }
 
   Future<void> _showQuickEditDialog(UserAnimeDto item) async {
+    final l10n = AppLocalizations.of(context)!;
     final result = await showDialog<UserAnimeUpdateDto>(
       context: context,
       builder: (ctx) => _QuickEditDialog(item: item),
@@ -523,7 +525,7 @@ class _MyListPageState extends ConsumerState<MyListPage> {
     if (success) {
       _resetAndReload();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Updated successfully')),
+        SnackBar(content: Text(l10n.myListUpdated)),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -868,6 +870,7 @@ class _YearFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final currentYear = DateTime.now().year;
     final years = List.generate(30, (i) => currentYear - i);
     final active = value != null;
@@ -885,7 +888,7 @@ class _YearFilterChip extends StatelessWidget {
         child: DropdownButton<int?>(
           value: value,
           hint: Text(
-            'Year',
+            l10n.year,
             style: TextStyle(
               color: active ? AppColors.accent : AppColors.textSecondary,
               fontSize: 13,
@@ -924,6 +927,7 @@ class _SortDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -940,7 +944,7 @@ class _SortDropdown extends StatelessWidget {
           items: _SortMode.values
               .map((m) => DropdownMenuItem(
                     value: m,
-                    child: Text(_sortLabel(m)),
+                    child: Text(_sortLabel(m, l10n)),
                   ))
               .toList(),
           onChanged: (m) {
@@ -951,20 +955,20 @@ class _SortDropdown extends StatelessWidget {
     );
   }
 
-  static String _sortLabel(_SortMode m) {
+  static String _sortLabel(_SortMode m, AppLocalizations l10n) {
     switch (m) {
       case _SortMode.nameAsc:
-        return 'A → Z';
+        return l10n.myListSortAZ;
       case _SortMode.nameDesc:
-        return 'Z → A';
+        return l10n.myListSortZA;
       case _SortMode.yearDesc:
-        return 'Year ↓';
+        return l10n.myListSortYearDesc;
       case _SortMode.yearAsc:
-        return 'Year ↑';
+        return l10n.myListSortYearAsc;
       case _SortMode.dateAddedDesc:
-        return 'Recently added';
+        return l10n.myListSortDateAdded;
       case _SortMode.dateUpdatedDesc:
-        return 'Recently updated';
+        return l10n.myListSortDateUpdated;
     }
   }
 }
@@ -1011,7 +1015,7 @@ class _EditorActionBar extends StatelessWidget {
               color: AppColors.accent,
             ),
             label: Text(
-              selectedCount == totalCount ? 'Deselect' : 'Select all',
+              selectedCount == totalCount ? l10n.myListDeselectAll : l10n.myListSelectAll,
               style: const TextStyle(color: AppColors.accent, fontSize: 12),
             ),
           ),
@@ -1019,7 +1023,7 @@ class _EditorActionBar extends StatelessWidget {
           // Count
           const SizedBox(width: AppSpacing.sm),
           Text(
-            '$selectedCount selected',
+            l10n.myListSelectedCount(selectedCount),
             style: const TextStyle(
               color: AppColors.textSecondary,
               fontSize: 12,
@@ -1031,7 +1035,7 @@ class _EditorActionBar extends StatelessWidget {
           // Change status popup
           if (selectedCount > 0) ...[
             PopupMenuButton<String>(
-              tooltip: 'Change status',
+              tooltip: l10n.myListChangeStatus,
               icon: const Icon(Icons.swap_horiz,
                   color: AppColors.textPrimary, size: 18),
               color: AppColors.surface,
@@ -1116,7 +1120,7 @@ class _QuickEditDialogState extends State<_QuickEditDialog> {
               initialValue: _status,
               dropdownColor: AppColors.surface,
               decoration: InputDecoration(
-                labelText: 'Status',
+                labelText: l10n.status,
                 labelStyle: const TextStyle(color: AppColors.textSecondary),
                 enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: AppColors.textSecondary.withAlpha(80)),
@@ -1126,11 +1130,11 @@ class _QuickEditDialogState extends State<_QuickEditDialog> {
                 ),
               ),
               style: const TextStyle(color: AppColors.textPrimary),
-              items: const [
-                DropdownMenuItem(value: 'watching', child: Text('Watching')),
-                DropdownMenuItem(value: 'completed', child: Text('Completed')),
-                DropdownMenuItem(value: 'plan-to-watch', child: Text('Plan to Watch')),
-                DropdownMenuItem(value: 'dropped', child: Text('Dropped')),
+              items: [
+                DropdownMenuItem(value: 'watching', child: Text(l10n.myListStatusWatching)),
+                DropdownMenuItem(value: 'completed', child: Text(l10n.myListStatusCompleted)),
+                DropdownMenuItem(value: 'plan-to-watch', child: Text(l10n.myListStatusPlanToWatch)),
+                DropdownMenuItem(value: 'dropped', child: Text(l10n.myListStatusDropped)),
               ],
               onChanged: (v) => setState(() => _status = v),
             ),
@@ -1143,7 +1147,7 @@ class _QuickEditDialogState extends State<_QuickEditDialog> {
                   const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(color: AppColors.textPrimary),
               decoration: InputDecoration(
-                labelText: 'Score (0-10)',
+                labelText: l10n.myListScore,
                 labelStyle: const TextStyle(color: AppColors.textSecondary),
                 enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: AppColors.textSecondary.withAlpha(80)),
@@ -1161,7 +1165,7 @@ class _QuickEditDialogState extends State<_QuickEditDialog> {
               keyboardType: TextInputType.number,
               style: const TextStyle(color: AppColors.textPrimary),
               decoration: InputDecoration(
-                labelText: 'Episodes watched',
+                labelText: l10n.myListEpisodesWatched,
                 labelStyle: const TextStyle(color: AppColors.textSecondary),
                 enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: AppColors.textSecondary.withAlpha(80)),
@@ -1179,7 +1183,7 @@ class _QuickEditDialogState extends State<_QuickEditDialog> {
               maxLines: 3,
               style: const TextStyle(color: AppColors.textPrimary),
               decoration: InputDecoration(
-                labelText: 'Notes',
+                labelText: l10n.myListNotes,
                 labelStyle: const TextStyle(color: AppColors.textSecondary),
                 enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: AppColors.textSecondary.withAlpha(80)),
@@ -1208,7 +1212,7 @@ class _QuickEditDialogState extends State<_QuickEditDialog> {
             );
             Navigator.of(context).pop(dto);
           },
-          child: const Text('Save'),
+          child: Text(l10n.save),
         ),
       ],
     );
