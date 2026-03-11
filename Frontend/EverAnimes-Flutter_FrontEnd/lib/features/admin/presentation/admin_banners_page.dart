@@ -304,7 +304,7 @@ class _BannerSlotCardState extends ConsumerState<_BannerSlotCard> {
             backgroundColor: Colors.green,
           ),
         );
-        ref.invalidate(homeBannersProvider);
+        bustBannerCache(ref);
       }
     } catch (e) {
       if (mounted) {

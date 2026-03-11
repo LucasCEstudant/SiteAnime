@@ -22,6 +22,31 @@ final homeBannersProvider = FutureProvider<List<HomeBannerDto>>((ref) {
   return ref.watch(homeBannerDatasourceProvider).getAll();
 });
 
+/// Cache-bust version counter — increment after every banner update
+/// so image widgets append `&_cb=<n>` and bypass stale browser cache.
+class _CacheBustNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void bump() => state++;
+}
+
+final bannerCacheBustProvider =
+    NotifierProvider<_CacheBustNotifier, int>(_CacheBustNotifier.new);
+
+/// Increments the cache-bust counter and invalidates banner data.
+void bustBannerCache(WidgetRef ref) {
+  ref.read(bannerCacheBustProvider.notifier).bump();
+  ref.invalidate(homeBannersProvider);
+}
+
+/// Appends `&_cb=<version>` to a cover URL to bypass browser cache.
+String? _cacheBustedUrl(String? url, int version) {
+  if (url == null || url.isEmpty || version == 0) return url;
+  final sep = url.contains('?') ? '&' : '?';
+  return '$url${sep}_cb=$version';
+}
+
 /// Tipo que carrega o banner + anime resolvido para a home.
 class ResolvedBanner {
   const ResolvedBanner({
@@ -40,8 +65,9 @@ class ResolvedBanner {
 /// Retorna null se não conseguir resolver.
 Future<ResolvedBanner?> _resolveBanner(
   Ref ref,
-  HomeBannerDto banner,
-) async {
+  HomeBannerDto banner, {
+  int cacheBustVersion = 0,
+}) async {
   try {
     if (banner.isLocal && banner.animeId != null) {
       final details = await ref.watch(
@@ -60,7 +86,7 @@ Future<ResolvedBanner?> _resolveBanner(
           title: details.title,
           year: details.year,
           score: details.score,
-          coverUrl: details.coverUrl,
+          coverUrl: _cacheBustedUrl(details.coverUrl, cacheBustVersion),
           genres: details.genres,
         ),
       );
@@ -81,7 +107,7 @@ Future<ResolvedBanner?> _resolveBanner(
           title: details.title,
           year: details.year,
           score: details.score,
-          coverUrl: details.coverUrl,
+          coverUrl: _cacheBustedUrl(details.coverUrl, cacheBustVersion),
           genres: details.genres,
         ),
       );
@@ -95,25 +121,27 @@ Future<ResolvedBanner?> _resolveBanner(
 /// Provider que resolve o banner primário (home-primary).
 final resolvedPrimaryBannerProvider =
     FutureProvider<ResolvedBanner?>((ref) async {
+  final cbVersion = ref.watch(bannerCacheBustProvider);
   final banners = await ref.watch(homeBannersProvider.future);
   final primary = banners
       .where((b) => b.slot == 'home-primary')
       .firstOrNull;
   if (primary == null) return null;
-  return _resolveBanner(ref, primary);
+  return _resolveBanner(ref, primary, cacheBustVersion: cbVersion);
 });
 
 /// Provider que resolve todos os banners secundários (para o carrossel).
 /// Hoje a API só tem home-secondary, mas o front já suporta N banners.
 final resolvedSecondaryBannersProvider =
     FutureProvider<List<ResolvedBanner>>((ref) async {
+  final cbVersion = ref.watch(bannerCacheBustProvider);
   final banners = await ref.watch(homeBannersProvider.future);
   // Pega todos que NÃO sejam home-primary (secundários, terciários, etc.)
   final secondaries =
       banners.where((b) => b.slot != 'home-primary').toList();
   final resolved = <ResolvedBanner>[];
   for (final banner in secondaries) {
-    final r = await _resolveBanner(ref, banner);
+    final r = await _resolveBanner(ref, banner, cacheBustVersion: cbVersion);
     if (r != null) resolved.add(r);
   }
   return resolved;

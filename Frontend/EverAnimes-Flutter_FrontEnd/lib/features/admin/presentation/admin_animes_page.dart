@@ -250,7 +250,7 @@ class _AnimesList extends ConsumerWidget {
         slot,
         HomeBannerUpdateDto(animeId: anime.id),
       );
-      ref.invalidate(homeBannersProvider);
+      bustBannerCache(ref);
       if (context.mounted) {
         final label = slot == 'home-primary' ? 'Principal' : 'Secundário';
         ScaffoldMessenger.of(context).showSnackBar(
