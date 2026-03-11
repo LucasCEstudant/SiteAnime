@@ -675,47 +675,47 @@ class _PosterHoverOverlay extends StatelessWidget {
               ),
             ),
 
-            // ── Info na base ────────────────────────────────────────
+            // ── Info na base (scaled up for expanded hover) ────────
             Positioned(
-              left: AppSpacing.sm,
-              right: AppSpacing.sm,
-              bottom: AppSpacing.sm,
+              left: AppSpacing.sm + 2,
+              right: AppSpacing.sm + 2,
+              bottom: AppSpacing.sm + 2,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Ano + Estrelas + Nota numérica
+                  // Ano + Estrelas + Nota numérica — larger on hover
                   Row(
                     children: [
                       if (anime.year != null) ...[
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 1),
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color:
                                 Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(2),
+                            borderRadius: BorderRadius.circular(3),
                           ),
                           child: Text(
                             '${anime.year}',
                             style: const TextStyle(
-                              fontSize: 9,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textSecondary,
                               letterSpacing: 0.3,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 5),
+                        const SizedBox(width: 6),
                       ],
                       if (anime.score != null) ...[
                         StarRatingWidget(
-                            score: anime.score!, starSize: 9),
-                        const SizedBox(width: 3),
+                            score: anime.score!, starSize: 12),
+                        const SizedBox(width: 4),
                         Text(
                           anime.score!.toStringAsFixed(1),
                           style: const TextStyle(
-                            fontSize: 9,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textSecondary,
                           ),
@@ -723,10 +723,10 @@ class _PosterHoverOverlay extends StatelessWidget {
                       ],
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
 
-                  // + Minha Lista
-                  AddToListButton(anime: anime, compact: true),
+                  // + Minha Lista — larger hit area & icon on hover
+                  AddToListButton(anime: anime, compact: false),
                 ],
               ),
             ),
