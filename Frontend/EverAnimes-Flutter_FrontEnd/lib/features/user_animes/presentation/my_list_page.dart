@@ -348,7 +348,7 @@ class _MyListPageState extends ConsumerState<MyListPage> {
                   ),
                   const SizedBox(height: AppSpacing.sm),
 
-                  // Row 2: Horizontal toolbar (search + filters)
+                  // Row 2: Responsive toolbar (search + filters)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.md,
@@ -361,14 +361,12 @@ class _MyListPageState extends ConsumerState<MyListPage> {
                         color: AppColors.surfaceVariant.withAlpha(150),
                       ),
                     ),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: MediaQuery.of(context).size.width < 620
-                                ? 220
-                                : 320,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isMobile = constraints.maxWidth < 760;
+
+                        Widget buildSearchField() {
+                          return SizedBox(
                             height: 40,
                             child: TextField(
                               onChanged: (v) => setState(() => _nameFilter = v),
@@ -394,70 +392,163 @@ class _MyListPageState extends ConsumerState<MyListPage> {
                                 border: OutlineInputBorder(
                                   borderRadius:
                                       BorderRadius.circular(AppRadius.btn),
-                                  borderSide: BorderSide.none,
+                                  borderSide: BorderSide(
+                                    color: AppColors.surfaceVariant.withAlpha(120),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.btn),
+                                  borderSide: BorderSide(
+                                    color: AppColors.surfaceVariant.withAlpha(120),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.btn),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.accent,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          SizedBox(
-                            width: 150,
-                            child: _StatusFilterDropdown(
-                              value: _selectedStatus,
-                              onChanged: _onStatusChanged,
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          SizedBox(
-                            width: 110,
-                            child: _YearFilterChip(
-                              value: _yearFilter,
-                              onChanged: (y) {
-                                _yearFilter = y;
-                                _resetAndReload();
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          SizedBox(
-                            width: 180,
-                            child: _SortDropdown(
-                              value: _sortMode,
-                              onChanged: (m) => setState(() => _sortMode = m),
-                            ),
-                          ),
-                          if (_editorMode) ...[
+                          );
+                        }
+
+                        if (isMobile) {
+                          final minWidth = ((constraints.maxWidth - AppSpacing.sm * 2) / 3)
+                              .clamp(120.0, 220.0)
+                              .toDouble();
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(width: double.infinity, child: buildSearchField()),
+                              const SizedBox(height: AppSpacing.sm),
+                              Wrap(
+                                spacing: AppSpacing.sm,
+                                runSpacing: AppSpacing.sm,
+                                children: [
+                                  SizedBox(
+                                    width: minWidth,
+                                    child: _StatusFilterDropdown(
+                                      value: _selectedStatus,
+                                      onChanged: _onStatusChanged,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: minWidth,
+                                    child: _YearFilterChip(
+                                      value: _yearFilter,
+                                      onChanged: (y) {
+                                        _yearFilter = y;
+                                        _resetAndReload();
+                                      },
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: minWidth,
+                                    child: _SortDropdown(
+                                      value: _sortMode,
+                                      onChanged: (m) => setState(() => _sortMode = m),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (_editorMode) ...[
+                                const SizedBox(height: AppSpacing.sm),
+                                SizedBox(
+                                  height: 40,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _selectAll,
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(
+                                        color: AppColors.accent.withAlpha(180),
+                                      ),
+                                      foregroundColor: AppColors.accent,
+                                      padding:
+                                          const EdgeInsets.symmetric(horizontal: 14),
+                                    ),
+                                    icon: Icon(
+                                      _selectedIds.length == filtered.length
+                                          ? Icons.deselect
+                                          : Icons.select_all,
+                                      size: 18,
+                                    ),
+                                    label: Text(
+                                      _selectedIds.length == filtered.length
+                                          ? l10n.myListDeselectAll
+                                          : l10n.myListSelectAll,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            Expanded(flex: 4, child: buildSearchField()),
                             const SizedBox(width: AppSpacing.sm),
-                            SizedBox(
-                              height: 40,
-                              child: OutlinedButton.icon(
-                                onPressed: _selectAll,
-                                style: OutlinedButton.styleFrom(
-                                  side: BorderSide(
-                                    color: AppColors.accent.withAlpha(180),
-                                  ),
-                                  foregroundColor: AppColors.accent,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                  ),
-                                ),
-                                icon: Icon(
-                                  _selectedIds.length == filtered.length
-                                      ? Icons.deselect
-                                      : Icons.select_all,
-                                  size: 18,
-                                ),
-                                label: Text(
-                                  _selectedIds.length == filtered.length
-                                      ? l10n.myListDeselectAll
-                                      : l10n.myListSelectAll,
-                                  style: const TextStyle(fontSize: 12),
-                                ),
+                            Expanded(
+                              flex: 2,
+                              child: _StatusFilterDropdown(
+                                value: _selectedStatus,
+                                onChanged: _onStatusChanged,
                               ),
                             ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              flex: 2,
+                              child: _YearFilterChip(
+                                value: _yearFilter,
+                                onChanged: (y) {
+                                  _yearFilter = y;
+                                  _resetAndReload();
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              flex: 3,
+                              child: _SortDropdown(
+                                value: _sortMode,
+                                onChanged: (m) => setState(() => _sortMode = m),
+                              ),
+                            ),
+                            if (_editorMode) ...[
+                              const SizedBox(width: AppSpacing.sm),
+                              SizedBox(
+                                height: 40,
+                                child: OutlinedButton.icon(
+                                  onPressed: _selectAll,
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                      color: AppColors.accent.withAlpha(180),
+                                    ),
+                                    foregroundColor: AppColors.accent,
+                                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                                  ),
+                                  icon: Icon(
+                                    _selectedIds.length == filtered.length
+                                        ? Icons.deselect
+                                        : Icons.select_all,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    _selectedIds.length == filtered.length
+                                        ? l10n.myListDeselectAll
+                                        : l10n.myListSelectAll,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -649,26 +740,76 @@ class _StatusFilterDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.bgBase,
         borderRadius: BorderRadius.circular(AppRadius.btn),
-        border: Border.all(color: AppColors.textSecondary.withAlpha(80)),
+        border: Border.all(color: AppColors.surfaceVariant.withAlpha(120)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String?>(
           value: value,
+          isExpanded: true,
           dropdownColor: AppColors.surface,
           style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
           icon: const Icon(Icons.filter_list,
               color: AppColors.textSecondary, size: 18),
+          selectedItemBuilder: (context) {
+            return _kStatusOptions
+                .map((s) {
+                  if (s == null) {
+                    return Text(
+                      l10n.all,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                      ),
+                    );
+                  }
+                  final color = _statusBadgeColor(s);
+                  return Text(
+                    _localizeStatus(s, l10n),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  );
+                })
+                .toList();
+          },
           items: _kStatusOptions
               .map((s) => DropdownMenuItem<String?>(
                     value: s,
-                    child: Text(
-                      s == null ? l10n.all : _localizeStatus(s, l10n),
-                      style: const TextStyle(color: AppColors.textPrimary),
-                    ),
+                    child: s == null
+                        ? Text(
+                            l10n.all,
+                            style: const TextStyle(color: AppColors.textPrimary),
+                          )
+                        : Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _statusBadgeColor(s).withAlpha(40),
+                              borderRadius: BorderRadius.circular(AppRadius.badge),
+                            ),
+                            child: Text(
+                              _localizeStatus(s, l10n),
+                              style: TextStyle(
+                                color: _statusBadgeColor(s),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
                   ))
               .toList(),
           onChanged: onChanged,
@@ -999,17 +1140,22 @@ class _YearFilterChip extends StatelessWidget {
     final active = value != null;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.bgBase,
         borderRadius: BorderRadius.circular(AppRadius.btn),
         border: Border.all(
-          color: active ? AppColors.accent : AppColors.textSecondary.withAlpha(80),
+          color: active
+              ? AppColors.accent
+              : AppColors.surfaceVariant.withAlpha(120),
         ),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int?>(
           value: value,
+          isExpanded: true,
           hint: Text(
             l10n.year,
             style: TextStyle(
@@ -1052,15 +1198,18 @@ class _SortDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: AppColors.bgBase,
         borderRadius: BorderRadius.circular(AppRadius.btn),
-        border: Border.all(color: AppColors.textSecondary.withAlpha(80)),
+        border: Border.all(color: AppColors.surfaceVariant.withAlpha(120)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<_SortMode>(
           value: value,
+          isExpanded: true,
           dropdownColor: AppColors.surface,
           style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
           icon: const Icon(Icons.sort, color: AppColors.textSecondary, size: 18),
@@ -1333,5 +1482,20 @@ class _QuickEditDialogState extends State<_QuickEditDialog> {
         ),
       ],
     );
+  }
+}
+
+Color _statusBadgeColor(String status) {
+  switch (status) {
+    case 'watching':
+      return Colors.lightBlueAccent;
+    case 'completed':
+      return Colors.greenAccent;
+    case 'plan-to-watch':
+      return Colors.orangeAccent;
+    case 'dropped':
+      return Colors.redAccent;
+    default:
+      return AppColors.textSecondary;
   }
 }
