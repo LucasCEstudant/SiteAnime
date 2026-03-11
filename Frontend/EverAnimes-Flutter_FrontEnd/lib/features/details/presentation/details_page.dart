@@ -399,13 +399,6 @@ class _DetailsTitleBlock extends ConsumerWidget {
                 maxLines: 3,
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.only(left: 6),
-              child: AddToListButton(
-                compact: true,
-                details: details,
-              ),
-            ),
             if (isAdmin)
               Padding(
                 padding: const EdgeInsets.only(left: 6),
@@ -413,7 +406,14 @@ class _DetailsTitleBlock extends ConsumerWidget {
               ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
+
+        // Add to list button — estilo banner (+ Adicionar à lista)
+        AddToListButton(
+          compact: false,
+          details: details,
+        ),
+        const SizedBox(height: 10),
 
         _DetailsMetadataRow(details: details),
         const SizedBox(height: 6),
