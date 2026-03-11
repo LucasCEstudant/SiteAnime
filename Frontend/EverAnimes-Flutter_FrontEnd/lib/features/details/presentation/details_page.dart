@@ -1103,13 +1103,17 @@ class _AdminEditButton extends ConsumerWidget {
       final datasource = ref.read(animesDatasourceProvider);
 
       if (result.isCreate) {
+        // Force fresh data from API for reliable duplicate check
+        ref.invalidate(animesListProvider);
         final existingLocal = await ref.read(animesListProvider.future);
-        final normalizedTitle = details.title.trim().toLowerCase();
+        final normalizedTitle =
+            result.createDto!.title.trim().toLowerCase();
         int? duplicateId;
         for (final anime in existingLocal) {
           final sameTitle = anime.title.trim().toLowerCase() == normalizedTitle;
-          final sameYear = anime.year != null && details.year != null
-              ? anime.year == details.year
+          final sameYear = anime.year != null &&
+                  result.createDto!.year != null
+              ? anime.year == result.createDto!.year
               : true;
           if (sameTitle && sameYear) {
             duplicateId = anime.id;
@@ -1129,7 +1133,7 @@ class _AdminEditButton extends ConsumerWidget {
         }
 
         await datasource.create(result.createDto!);
-        await ref.refresh(animesListProvider.future);
+        ref.invalidate(animesListProvider);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Anime created in local DB')),
