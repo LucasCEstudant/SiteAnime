@@ -178,11 +178,19 @@ class _HeroBackgroundImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+
+    // Limit decode resolution to the device's logical pixels × DPR.
+    // Prevents oversized decodes that cause black/blank images on mobile.
+    final mq = MediaQuery.of(context);
+    final dpr = mq.devicePixelRatio.clamp(1.0, 3.0);
+    final decodeWidth = (mq.size.width * dpr).toInt();
+
     return UpscalableHeroImage(
       imageUrl: coverUrl,
       fit: BoxFit.cover,
       width: double.infinity,
       height: double.infinity,
+      cacheWidth: decodeWidth,
       semanticLabel: l10n.homeFeaturedCover,
       errorBuilder: (ctx, err, st) =>
           const ColoredBox(color: AppColors.bgDeep),

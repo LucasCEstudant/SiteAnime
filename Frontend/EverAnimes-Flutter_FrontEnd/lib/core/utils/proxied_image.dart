@@ -18,6 +18,8 @@ class ProxiedImage extends StatefulWidget {
     this.semanticLabel,
     this.errorBuilder,
     this.webHtmlElementStrategy,
+    this.cacheWidth,
+    this.cacheHeight,
   });
 
   final String src;
@@ -28,6 +30,8 @@ class ProxiedImage extends StatefulWidget {
   final String? semanticLabel;
   final ImageErrorWidgetBuilder? errorBuilder;
   final WebHtmlElementStrategy? webHtmlElementStrategy;
+  final int? cacheWidth;
+  final int? cacheHeight;
 
   @override
   State<ProxiedImage> createState() => _ProxiedImageState();
@@ -61,6 +65,8 @@ class _ProxiedImageState extends State<ProxiedImage> {
       height: widget.height,
       alignment: widget.alignment,
       semanticLabel: widget.semanticLabel,
+      cacheWidth: widget.cacheWidth,
+      cacheHeight: widget.cacheHeight,
       webHtmlElementStrategy:
           widget.webHtmlElementStrategy ?? WebHtmlElementStrategy.prefer,
       errorBuilder: (ctx, err, st) {
