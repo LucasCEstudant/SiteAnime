@@ -1,6 +1,6 @@
 // Helper para resolver URLs de embed de vídeo de diferentes provedores.
 //
-// Suporta: Wistia, YouTube, Dailymotion.
+// Suporta: Wistia, YouTube, Dailymotion, Google Drive.
 // Para provedores não-embedáveis (Crunchyroll, Netflix, etc.) retorna `null`.
 
 import '../../../core/utils/image_proxy_url.dart';
@@ -47,6 +47,15 @@ EmbedResult? resolveEmbedUrl(String url) {
     return EmbedResult(
       embedUrl: 'https://www.dailymotion.com/embed/video/$dailymotionId',
       provider: 'Dailymotion',
+    );
+  }
+
+  // --- Google Drive ---
+  final gdriveId = _extractGoogleDriveId(url);
+  if (gdriveId != null) {
+    return EmbedResult(
+      embedUrl: 'https://drive.google.com/file/d/$gdriveId/preview',
+      provider: 'Google Drive',
     );
   }
 
@@ -143,6 +152,33 @@ String? _extractDailymotionId(String url) {
     final segments = uri.pathSegments;
     if (segments.length >= 2 && segments[0] == 'video') {
       return segments[1];
+    }
+
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Google Drive — formatos suportados:
+/// - `https://drive.google.com/file/d/{id}/view`
+/// - `https://drive.google.com/file/d/{id}/preview`
+/// - `https://drive.google.com/open?id={id}`
+String? _extractGoogleDriveId(String url) {
+  try {
+    final uri = Uri.parse(url);
+    final host = uri.host.replaceAll('www.', '');
+    if (host != 'drive.google.com') return null;
+
+    // /file/d/{id}/...
+    final segments = uri.pathSegments;
+    if (segments.length >= 3 && segments[0] == 'file' && segments[1] == 'd') {
+      return segments[2];
+    }
+
+    // /open?id={id}
+    if (uri.queryParameters.containsKey('id')) {
+      return uri.queryParameters['id'];
     }
 
     return null;
