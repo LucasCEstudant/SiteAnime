@@ -867,13 +867,13 @@ abstract class AppLocalizations {
   /// No description provided for @adminApiTest.
   ///
   /// In pt, this message translates to:
-  /// **'Teste API'**
+  /// **'API Explorer'**
   String get adminApiTest;
 
   /// No description provided for @adminApiTestDesc.
   ///
   /// In pt, this message translates to:
-  /// **'Diagnóstico e testes de endpoints'**
+  /// **'Navegar e testar endpoints da API'**
   String get adminApiTestDesc;
 
   /// No description provided for @adminNavigation.
@@ -1149,7 +1149,7 @@ abstract class AppLocalizations {
   /// No description provided for @apiTestTitle.
   ///
   /// In pt, this message translates to:
-  /// **'Teste de API'**
+  /// **'API Explorer'**
   String get apiTestTitle;
 
   /// No description provided for @apiTestUnexpectedError.
@@ -1161,8 +1161,50 @@ abstract class AppLocalizations {
   /// No description provided for @apiTestRepeat.
   ///
   /// In pt, this message translates to:
-  /// **'Repetir testes'**
+  /// **'Atualizar'**
   String get apiTestRepeat;
+
+  /// No description provided for @apiExplorerNoEndpoints.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum endpoint encontrado'**
+  String get apiExplorerNoEndpoints;
+
+  /// No description provided for @apiExplorerTryIt.
+  ///
+  /// In pt, this message translates to:
+  /// **'Testar'**
+  String get apiExplorerTryIt;
+
+  /// No description provided for @apiExplorerSend.
+  ///
+  /// In pt, this message translates to:
+  /// **'Enviar'**
+  String get apiExplorerSend;
+
+  /// No description provided for @apiExplorerResponse.
+  ///
+  /// In pt, this message translates to:
+  /// **'Resposta'**
+  String get apiExplorerResponse;
+
+  /// No description provided for @apiExplorerParams.
+  ///
+  /// In pt, this message translates to:
+  /// **'Parâmetros'**
+  String get apiExplorerParams;
+
+  /// No description provided for @apiExplorerRequired.
+  ///
+  /// In pt, this message translates to:
+  /// **'obrigatório'**
+  String get apiExplorerRequired;
+
+  /// No description provided for @apiExplorerBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Corpo da Requisição'**
+  String get apiExplorerBody;
 
   /// No description provided for @accessDeniedTitle.
   ///
@@ -1463,6 +1505,12 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Notas'**
   String get myListNotes;
+
+  /// No description provided for @apiExplorerEndpointCount.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count} endpoints'**
+  String apiExplorerEndpointCount(int count);
 }
 
 class _AppLocalizationsDelegate

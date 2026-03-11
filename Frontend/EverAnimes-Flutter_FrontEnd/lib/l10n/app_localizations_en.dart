@@ -407,10 +407,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adminManageAnimesDesc => 'Local anime CRUD';
 
   @override
-  String get adminApiTest => 'API Test';
+  String get adminApiTest => 'API Explorer';
 
   @override
-  String get adminApiTestDesc => 'Diagnostics and endpoint tests';
+  String get adminApiTestDesc => 'Browse and test API endpoints';
 
   @override
   String get adminNavigation => 'Navigation';
@@ -560,7 +560,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get adminUsersDeleteWarning => 'This action cannot be undone.';
 
   @override
-  String get apiTestTitle => 'API Test';
+  String get apiTestTitle => 'API Explorer';
 
   @override
   String apiTestUnexpectedError(String error) {
@@ -568,7 +568,28 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get apiTestRepeat => 'Repeat tests';
+  String get apiTestRepeat => 'Refresh';
+
+  @override
+  String get apiExplorerNoEndpoints => 'No endpoints found';
+
+  @override
+  String get apiExplorerTryIt => 'Try it';
+
+  @override
+  String get apiExplorerSend => 'Send';
+
+  @override
+  String get apiExplorerResponse => 'Response';
+
+  @override
+  String get apiExplorerParams => 'Parameters';
+
+  @override
+  String get apiExplorerRequired => 'required';
+
+  @override
+  String get apiExplorerBody => 'Request Body';
 
   @override
   String get accessDeniedTitle => 'Access Denied';
@@ -728,4 +749,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get myListNotes => 'Notes';
+
+  @override
+  String apiExplorerEndpointCount(int count) {
+    return '$count endpoints';
+  }
 }

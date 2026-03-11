@@ -404,10 +404,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get adminManageAnimesDesc => '本地动漫增删改查';
 
   @override
-  String get adminApiTest => 'API测试';
+  String get adminApiTest => 'API 浏览器';
 
   @override
-  String get adminApiTestDesc => '诊断与端点测试';
+  String get adminApiTestDesc => '浏览和测试API端点';
 
   @override
   String get adminNavigation => '导航';
@@ -555,7 +555,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get adminUsersDeleteWarning => '此操作无法撤销。';
 
   @override
-  String get apiTestTitle => 'API测试';
+  String get apiTestTitle => 'API 浏览器';
 
   @override
   String apiTestUnexpectedError(String error) {
@@ -563,7 +563,28 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get apiTestRepeat => '重新测试';
+  String get apiTestRepeat => '刷新';
+
+  @override
+  String get apiExplorerNoEndpoints => '未找到端点';
+
+  @override
+  String get apiExplorerTryIt => '测试';
+
+  @override
+  String get apiExplorerSend => '发送';
+
+  @override
+  String get apiExplorerResponse => '响应';
+
+  @override
+  String get apiExplorerParams => '参数';
+
+  @override
+  String get apiExplorerRequired => '必填';
+
+  @override
+  String get apiExplorerBody => '请求体';
 
   @override
   String get accessDeniedTitle => '访问被拒绝';
@@ -720,4 +741,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get myListNotes => '备注';
+
+  @override
+  String apiExplorerEndpointCount(int count) {
+    return '$count 个端点';
+  }
 }

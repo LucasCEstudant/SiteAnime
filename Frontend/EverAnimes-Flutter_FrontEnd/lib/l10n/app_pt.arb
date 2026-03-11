@@ -147,8 +147,8 @@
   "adminManageUsersDesc": "Criar, editar e remover usuários",
   "adminManageAnimes": "Gerenciar Animes",
   "adminManageAnimesDesc": "CRUD de animes locais",
-  "adminApiTest": "Teste API",
-  "adminApiTestDesc": "Diagnóstico e testes de endpoints",
+  "adminApiTest": "API Explorer",
+  "adminApiTestDesc": "Navegar e testar endpoints da API",
   "adminNavigation": "Navegação",
   "adminHomePage": "Página Inicial",
   "adminMyProfile": "Meu Perfil",
@@ -202,10 +202,17 @@
   "@adminUsersDeleteRole": { "placeholders": { "role": { "type": "String" } } },
   "adminUsersDeleteWarning": "Esta ação não pode ser desfeita.",
 
-  "apiTestTitle": "Teste de API",
+  "apiTestTitle": "API Explorer",
   "apiTestUnexpectedError": "Erro inesperado: {error}",
   "@apiTestUnexpectedError": { "placeholders": { "error": { "type": "String" } } },
-  "apiTestRepeat": "Repetir testes",
+  "apiTestRepeat": "Atualizar",
+  "apiExplorerNoEndpoints": "Nenhum endpoint encontrado",
+  "apiExplorerTryIt": "Testar",
+  "apiExplorerSend": "Enviar",
+  "apiExplorerResponse": "Resposta",
+  "apiExplorerParams": "Parâmetros",
+  "apiExplorerRequired": "obrigatório",
+  "apiExplorerBody": "Corpo da Requisição",
 
   "accessDeniedTitle": "Acesso Negado",
   "accessDeniedMessage": "Você não tem permissão para acessar esta página.\nEsta área é restrita a administradores.",
@@ -267,5 +274,7 @@
   "myListUpdated": "Atualizado com sucesso",
   "myListScore": "Nota (0–10)",
   "myListEpisodesWatched": "Episódios assistidos",
-  "myListNotes": "Notas"
+  "myListNotes": "Notas",
+  "apiExplorerEndpointCount": "{count} endpoints",
+  "@apiExplorerEndpointCount": { "placeholders": { "count": { "type": "int" } } }
 }

@@ -140,8 +140,8 @@
   "adminManageUsersDesc": "Crear, editar y eliminar usuarios",
   "adminManageAnimes": "Gestionar Animes",
   "adminManageAnimesDesc": "CRUD de animes locales",
-  "adminApiTest": "Prueba API",
-  "adminApiTestDesc": "Diagnósticos y pruebas de endpoints",
+  "adminApiTest": "API Explorer",
+  "adminApiTestDesc": "Navegar y probar endpoints de la API",
   "adminNavigation": "Navegación",
   "adminHomePage": "Página de Inicio",
   "adminMyProfile": "Mi Perfil",
@@ -190,9 +190,16 @@
   "adminUsersDeleteRole": "Rol: {role}",
   "adminUsersDeleteWarning": "Esta acción no se puede deshacer.",
 
-  "apiTestTitle": "Prueba de API",
+  "apiTestTitle": "API Explorer",
   "apiTestUnexpectedError": "Error inesperado: {error}",
-  "apiTestRepeat": "Repetir pruebas",
+  "apiTestRepeat": "Actualizar",
+  "apiExplorerNoEndpoints": "No se encontraron endpoints",
+  "apiExplorerTryIt": "Probar",
+  "apiExplorerSend": "Enviar",
+  "apiExplorerResponse": "Respuesta",
+  "apiExplorerParams": "Parámetros",
+  "apiExplorerRequired": "obligatorio",
+  "apiExplorerBody": "Cuerpo de Solicitud",
 
   "accessDeniedTitle": "Acceso Denegado",
   "accessDeniedMessage": "No tienes permiso para acceder a esta página.\nEsta área está restringida a administradores.",
@@ -253,5 +260,7 @@
   "myListUpdated": "Actualizado con éxito",
   "myListScore": "Puntuación (0–10)",
   "myListEpisodesWatched": "Episodios vistos",
-  "myListNotes": "Notas"
+  "myListNotes": "Notas",
+  "apiExplorerEndpointCount": "{count} endpoints",
+  "@apiExplorerEndpointCount": { "placeholders": { "count": { "type": "int" } } }
 }

@@ -411,10 +411,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get adminManageAnimesDesc => 'CRUD de animes locales';
 
   @override
-  String get adminApiTest => 'Prueba API';
+  String get adminApiTest => 'API Explorer';
 
   @override
-  String get adminApiTestDesc => 'Diagnósticos y pruebas de endpoints';
+  String get adminApiTestDesc => 'Navegar y probar endpoints de la API';
 
   @override
   String get adminNavigation => 'Navegación';
@@ -565,7 +565,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get adminUsersDeleteWarning => 'Esta acción no se puede deshacer.';
 
   @override
-  String get apiTestTitle => 'Prueba de API';
+  String get apiTestTitle => 'API Explorer';
 
   @override
   String apiTestUnexpectedError(String error) {
@@ -573,7 +573,28 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get apiTestRepeat => 'Repetir pruebas';
+  String get apiTestRepeat => 'Actualizar';
+
+  @override
+  String get apiExplorerNoEndpoints => 'No se encontraron endpoints';
+
+  @override
+  String get apiExplorerTryIt => 'Probar';
+
+  @override
+  String get apiExplorerSend => 'Enviar';
+
+  @override
+  String get apiExplorerResponse => 'Respuesta';
+
+  @override
+  String get apiExplorerParams => 'Parámetros';
+
+  @override
+  String get apiExplorerRequired => 'obligatorio';
+
+  @override
+  String get apiExplorerBody => 'Cuerpo de Solicitud';
 
   @override
   String get accessDeniedTitle => 'Acceso Denegado';
@@ -734,4 +755,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get myListNotes => 'Notas';
+
+  @override
+  String apiExplorerEndpointCount(int count) {
+    return '$count endpoints';
+  }
 }
