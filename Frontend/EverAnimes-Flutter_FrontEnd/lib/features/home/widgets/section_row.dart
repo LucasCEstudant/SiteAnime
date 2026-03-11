@@ -725,8 +725,8 @@ class _PosterHoverOverlay extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
 
-                  // + Minha Lista — larger hit area & icon on hover
-                  AddToListButton(anime: anime, compact: false),
+                  // + Minha Lista — compact icon-only to fit poster card
+                  AddToListButton(anime: anime, compact: true),
                 ],
               ),
             ),
