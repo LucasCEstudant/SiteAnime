@@ -299,6 +299,13 @@ class _MyListPageState extends ConsumerState<MyListPage> {
 
     return Scaffold(
       backgroundColor: AppColors.bgBase,
+      bottomNavigationBar: _editorMode
+          ? _EditorActionBar(
+              selectedCount: _selectedIds.length,
+              onDelete: _batchDelete,
+              onChangeStatus: _batchChangeStatus,
+            )
+          : null,
       body: CustomScrollView(
         controller: _scrollController,
         slivers: [
@@ -317,7 +324,7 @@ class _MyListPageState extends ConsumerState<MyListPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Row 1: Title + Editor toggle + Status filter
+                  // Row 1: Title + Editor toggle
                   Row(
                     children: [
                       Text(
@@ -337,76 +344,213 @@ class _MyListPageState extends ConsumerState<MyListPage> {
                         ),
                         tooltip: _editorMode ? l10n.myListExitEditor : l10n.myListEditorMode,
                       ),
-                      const Spacer(),
-                      _StatusFilterDropdown(
-                        value: _selectedStatus,
-                        onChanged: _onStatusChanged,
-                      ),
                     ],
                   ),
                   const SizedBox(height: AppSpacing.sm),
 
-                  // Row 2: Name search + Year + Sort
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: SizedBox(
-                          height: 36,
-                          child: TextField(
-                            onChanged: (v) => setState(() => _nameFilter = v),
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 13,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: l10n.headerSearchHint,
-                              hintStyle: const TextStyle(
-                                color: AppColors.textSecondary,
+                  // Row 2: Responsive toolbar (search + filters)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface.withAlpha(175),
+                      borderRadius: BorderRadius.circular(AppRadius.card),
+                      border: Border.all(
+                        color: AppColors.surfaceVariant.withAlpha(150),
+                      ),
+                    ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isMobile = constraints.maxWidth < 760;
+
+                        Widget buildSearchField() {
+                          return SizedBox(
+                            height: 40,
+                            child: TextField(
+                              onChanged: (v) => setState(() => _nameFilter = v),
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
                                 fontSize: 13,
                               ),
-                              prefixIcon: const Icon(Icons.search,
-                                  color: AppColors.textSecondary, size: 18),
-                              filled: true,
-                              fillColor: AppColors.surface,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(horizontal: 12),
-                              border: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.btn),
-                                borderSide: BorderSide.none,
+                              decoration: InputDecoration(
+                                hintText: l10n.headerSearchHint,
+                                hintStyle: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 13,
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.search,
+                                  color: AppColors.textSecondary,
+                                  size: 18,
+                                ),
+                                filled: true,
+                                fillColor: AppColors.bgBase,
+                                contentPadding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.btn),
+                                  borderSide: BorderSide(
+                                    color: AppColors.surfaceVariant.withAlpha(120),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.btn),
+                                  borderSide: BorderSide(
+                                    color: AppColors.surfaceVariant.withAlpha(120),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.btn),
+                                  borderSide: const BorderSide(
+                                    color: AppColors.accent,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      _YearFilterChip(
-                        value: _yearFilter,
-                        onChanged: (y) {
-                          _yearFilter = y;
-                          _resetAndReload();
-                        },
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      _SortDropdown(
-                        value: _sortMode,
-                        onChanged: (m) => setState(() => _sortMode = m),
-                      ),
-                    ],
-                  ),
+                          );
+                        }
 
-                  // Row 3: Editor actions
-                  if (_editorMode) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    _EditorActionBar(
-                      selectedCount: _selectedIds.length,
-                      totalCount: filtered.length,
-                      onSelectAll: _selectAll,
-                      onDelete: _batchDelete,
-                      onChangeStatus: _batchChangeStatus,
+                        if (isMobile) {
+                          final minWidth = ((constraints.maxWidth - AppSpacing.sm * 2) / 3)
+                              .clamp(120.0, 220.0)
+                              .toDouble();
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(width: double.infinity, child: buildSearchField()),
+                              const SizedBox(height: AppSpacing.sm),
+                              Wrap(
+                                spacing: AppSpacing.sm,
+                                runSpacing: AppSpacing.sm,
+                                children: [
+                                  SizedBox(
+                                    width: minWidth > 150 ? 150 : minWidth,
+                                    child: _StatusFilterDropdown(
+                                      value: _selectedStatus,
+                                      onChanged: _onStatusChanged,
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: minWidth > 120 ? 120 : minWidth,
+                                    child: _YearFilterChip(
+                                      value: _yearFilter,
+                                      onChanged: (y) {
+                                        _yearFilter = y;
+                                        _resetAndReload();
+                                      },
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: minWidth > 180 ? 180 : minWidth,
+                                    child: _SortDropdown(
+                                      value: _sortMode,
+                                      onChanged: (m) => setState(() => _sortMode = m),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (_editorMode) ...[
+                                const SizedBox(height: AppSpacing.sm),
+                                SizedBox(
+                                  height: 40,
+                                  child: OutlinedButton.icon(
+                                    onPressed: _selectAll,
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(
+                                        color: AppColors.accent.withAlpha(180),
+                                      ),
+                                      foregroundColor: AppColors.accent,
+                                      padding:
+                                          const EdgeInsets.symmetric(horizontal: 14),
+                                    ),
+                                    icon: Icon(
+                                      _selectedIds.length == filtered.length
+                                          ? Icons.deselect
+                                          : Icons.select_all,
+                                      size: 18,
+                                    ),
+                                    label: Text(
+                                      _selectedIds.length == filtered.length
+                                          ? l10n.myListDeselectAll
+                                          : l10n.myListSelectAll,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            Expanded(child: buildSearchField()),
+                            const SizedBox(width: AppSpacing.sm),
+                            SizedBox(
+                              width: 150,
+                              child: _StatusFilterDropdown(
+                                value: _selectedStatus,
+                                onChanged: _onStatusChanged,
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            SizedBox(
+                              width: 120,
+                              child: _YearFilterChip(
+                                value: _yearFilter,
+                                onChanged: (y) {
+                                  _yearFilter = y;
+                                  _resetAndReload();
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            SizedBox(
+                              width: 180,
+                              child: _SortDropdown(
+                                value: _sortMode,
+                                onChanged: (m) => setState(() => _sortMode = m),
+                              ),
+                            ),
+                            if (_editorMode) ...[
+                              const SizedBox(width: AppSpacing.sm),
+                              SizedBox(
+                                height: 40,
+                                child: OutlinedButton.icon(
+                                  onPressed: _selectAll,
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                      color: AppColors.accent.withAlpha(180),
+                                    ),
+                                    foregroundColor: AppColors.accent,
+                                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                                  ),
+                                  icon: Icon(
+                                    _selectedIds.length == filtered.length
+                                        ? Icons.deselect
+                                        : Icons.select_all,
+                                    size: 18,
+                                  ),
+                                  label: Text(
+                                    _selectedIds.length == filtered.length
+                                        ? l10n.myListDeselectAll
+                                        : l10n.myListSelectAll,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        );
+                      },
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
@@ -595,28 +739,60 @@ class _StatusFilterDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.btn),
-        border: Border.all(color: AppColors.textSecondary.withAlpha(80)),
-      ),
+
+    return _FilterFieldShell(
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String?>(
           value: value,
+          isExpanded: true,
+          menuMaxHeight: 280,
           dropdownColor: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          icon: const Icon(Icons.filter_list, color: AppColors.textSecondary, size: 18),
           style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
-          icon: const Icon(Icons.filter_list,
-              color: AppColors.textSecondary, size: 18),
-          items: _kStatusOptions
-              .map((s) => DropdownMenuItem<String?>(
-                    value: s,
-                    child: Text(
-                      s == null ? l10n.all : _localizeStatus(s, l10n),
-                      style: const TextStyle(color: AppColors.textPrimary),
+          selectedItemBuilder: (context) => _kStatusOptions
+              .map(
+                (s) => Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    s == null ? l10n.all : _localizeStatus(s, l10n),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: s == null ? AppColors.textPrimary : _statusBadgeColor(s),
+                      fontSize: 13,
+                      fontWeight: s == null ? FontWeight.w500 : FontWeight.w700,
                     ),
-                  ))
+                  ),
+                ),
+              )
+              .toList(),
+          items: _kStatusOptions
+              .map(
+                (s) => DropdownMenuItem<String?>(
+                  value: s,
+                  child: s == null
+                      ? Text(
+                          l10n.all,
+                          style: const TextStyle(color: AppColors.textPrimary),
+                        )
+                      : Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: _statusBadgeColor(s).withAlpha(40),
+                            borderRadius: BorderRadius.circular(AppRadius.badge),
+                          ),
+                          child: Text(
+                            _localizeStatus(s, l10n),
+                            style: TextStyle(
+                              color: _statusBadgeColor(s),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                ),
+              )
               .toList(),
           onChanged: onChanged,
         ),
@@ -694,6 +870,26 @@ class _MyListCardState extends State<_MyListCard> {
               ? Matrix4.diagonal3Values(1.04, 1.04, 1.0)
               : Matrix4.identity(),
           transformAlignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: widget.editorMode
+                ? Border.all(
+                    color: widget.selected
+                        ? AppColors.accent
+                        : AppColors.surfaceVariant.withAlpha(120),
+                    width: widget.selected ? 2.2 : 1,
+                  )
+                : null,
+            boxShadow: widget.editorMode && widget.selected
+                ? [
+                    BoxShadow(
+                      color: AppColors.accent.withAlpha(120),
+                      blurRadius: 14,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : null,
+          ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.card),
             child: Stack(
@@ -849,20 +1045,35 @@ class _MyListCardState extends State<_MyListCard> {
                   Positioned.fill(
                     child: Container(
                       color: widget.selected
-                          ? AppColors.accent.withAlpha(60)
+                          ? Colors.black.withAlpha(35)
                           : Colors.transparent,
                       child: Align(
                         alignment: Alignment.topLeft,
                         child: Padding(
                           padding: const EdgeInsets.all(6),
-                          child: Icon(
-                            widget.selected
-                                ? Icons.check_circle
-                                : Icons.radio_button_unchecked,
-                            color: widget.selected
-                                ? AppColors.accent
-                                : AppColors.textSecondary,
-                            size: 22,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: widget.selected
+                                  ? AppColors.accent
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color: widget.selected
+                                    ? AppColors.accent
+                                    : AppColors.textSecondary,
+                                width: 1.4,
+                              ),
+                            ),
+                            child: widget.selected
+                                ? const Icon(
+                                    Icons.check,
+                                    size: 12,
+                                    color: AppColors.textPrimary,
+                                  )
+                                : null,
                           ),
                         ),
                       ),
@@ -910,41 +1121,48 @@ class _YearFilterChip extends StatelessWidget {
     final years = List.generate(30, (i) => currentYear - i);
     final active = value != null;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.btn),
-        border: Border.all(
-          color: active ? AppColors.accent : AppColors.textSecondary.withAlpha(80),
-        ),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int?>(
-          value: value,
-          hint: Text(
-            l10n.year,
-            style: TextStyle(
-              color: active ? AppColors.accent : AppColors.textSecondary,
-              fontSize: 13,
+    return _FilterFieldShell(
+      borderColor: active ? AppColors.accent : null,
+      child: Row(
+        children: [
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int?>(
+                value: value,
+                isExpanded: true,
+                menuMaxHeight: 280,
+                dropdownColor: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.card),
+                hint: Text(
+                  l10n.year,
+                  style: TextStyle(
+                    color: active ? AppColors.accent : AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+                style: TextStyle(
+                  color: active ? AppColors.accent : AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                ),
+                icon: const SizedBox.shrink(),
+                items: [
+                  DropdownMenuItem<int?>(value: null, child: Text(l10n.all)),
+                  ...years.map((y) => DropdownMenuItem<int?>(value: y, child: Text('$y'))),
+                ],
+                onChanged: onChanged,
+              ),
             ),
           ),
-          dropdownColor: AppColors.surface,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-          icon: active
-              ? GestureDetector(
-                  onTap: () => onChanged(null),
-                  child: const Icon(Icons.close, color: AppColors.accent, size: 16),
-                )
-              : const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary, size: 18),
-          items: years
-              .map((y) => DropdownMenuItem<int?>(
-                    value: y,
-                    child: Text('$y'),
-                  ))
-              .toList(),
-          onChanged: onChanged,
-        ),
+          const SizedBox(width: 6),
+          if (active)
+            GestureDetector(
+              onTap: () => onChanged(null),
+              child: const Icon(Icons.close, color: AppColors.accent, size: 17),
+            )
+          else
+            const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary, size: 18),
+        ],
       ),
     );
   }
@@ -963,24 +1181,18 @@ class _SortDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.btn),
-        border: Border.all(color: AppColors.textSecondary.withAlpha(80)),
-      ),
+    return _FilterFieldShell(
       child: DropdownButtonHideUnderline(
         child: DropdownButton<_SortMode>(
           value: value,
+          isExpanded: true,
+          menuMaxHeight: 280,
           dropdownColor: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.card),
           style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
           icon: const Icon(Icons.sort, color: AppColors.textSecondary, size: 18),
           items: _SortMode.values
-              .map((m) => DropdownMenuItem(
-                    value: m,
-                    child: Text(_sortLabel(m, l10n)),
-                  ))
+              .map((m) => DropdownMenuItem<_SortMode>(value: m, child: Text(_sortLabel(m, l10n))))
               .toList(),
           onChanged: (m) {
             if (m != null) onChanged(m);
@@ -1008,6 +1220,33 @@ class _SortDropdown extends StatelessWidget {
   }
 }
 
+class _FilterFieldShell extends StatelessWidget {
+  const _FilterFieldShell({
+    required this.child,
+    this.borderColor,
+  });
+
+  final Widget child;
+  final Color? borderColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.bgBase,
+        borderRadius: BorderRadius.circular(AppRadius.btn),
+        border: Border.all(
+          color: borderColor ?? AppColors.surfaceVariant.withAlpha(120),
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // _EditorActionBar
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1015,82 +1254,172 @@ class _SortDropdown extends StatelessWidget {
 class _EditorActionBar extends StatelessWidget {
   const _EditorActionBar({
     required this.selectedCount,
-    required this.totalCount,
-    required this.onSelectAll,
     required this.onDelete,
     required this.onChangeStatus,
   });
 
   final int selectedCount;
-  final int totalCount;
-  final VoidCallback onSelectAll;
   final VoidCallback onDelete;
   final ValueChanged<String> onChangeStatus;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.btn),
-        border: Border.all(color: AppColors.accent.withAlpha(80)),
-      ),
-      child: Row(
-        children: [
-          // Select all / deselect
-          TextButton.icon(
-            onPressed: onSelectAll,
-            icon: Icon(
-              selectedCount == totalCount
-                  ? Icons.deselect
-                  : Icons.select_all,
-              size: 16,
-              color: AppColors.accent,
-            ),
-            label: Text(
-              selectedCount == totalCount ? l10n.myListDeselectAll : l10n.myListSelectAll,
-              style: const TextStyle(color: AppColors.accent, fontSize: 12),
-            ),
+    final isMobile = MediaQuery.of(context).size.width < 640;
+    final deleteIconSize = isMobile ? 20.0 : 22.0;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 12 : 18,
+          vertical: isMobile ? 8 : 10,
+        ),
+        decoration: const BoxDecoration(
+          color: Color(0xFFB3262D),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(AppRadius.card),
+            topRight: Radius.circular(AppRadius.card),
           ),
-
-          // Count
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            l10n.myListSelectedCount(selectedCount),
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                l10n.myListSelectedCount(selectedCount),
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: isMobile ? 14 : 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-          ),
-
-          const Spacer(),
-
-          // Change status popup
-          if (selectedCount > 0) ...[
-            PopupMenuButton<String>(
-              tooltip: l10n.myListChangeStatus,
-              icon: const Icon(Icons.swap_horiz,
-                  color: AppColors.textPrimary, size: 18),
-              color: AppColors.surface,
-              onSelected: onChangeStatus,
-              itemBuilder: (_) => [
-                PopupMenuItem(value: 'watching', child: Text(l10n.myListStatusWatching)),
-                PopupMenuItem(value: 'completed', child: Text(l10n.myListStatusCompleted)),
-                PopupMenuItem(value: 'plan-to-watch', child: Text(l10n.myListStatusPlanToWatch)),
-                PopupMenuItem(value: 'dropped', child: Text(l10n.myListStatusDropped)),
+            Wrap(
+              spacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                PopupMenuButton<String>(
+                  tooltip: l10n.myListChangeStatus,
+                  enabled: selectedCount > 0,
+                  color: AppColors.surface,
+                  onSelected: onChangeStatus,
+                  position: PopupMenuPosition.under,
+                  constraints: const BoxConstraints(maxWidth: 240),
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'watching',
+                      child: _StatusMenuBadge(
+                        label: l10n.myListStatusWatching,
+                        color: _statusBadgeColor('watching'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'completed',
+                      child: _StatusMenuBadge(
+                        label: l10n.myListStatusCompleted,
+                        color: _statusBadgeColor('completed'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'plan-to-watch',
+                      child: _StatusMenuBadge(
+                        label: l10n.myListStatusPlanToWatch,
+                        color: _statusBadgeColor('plan-to-watch'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'dropped',
+                      child: _StatusMenuBadge(
+                        label: l10n.myListStatusDropped,
+                        color: _statusBadgeColor('dropped'),
+                      ),
+                    ),
+                  ],
+                  child: SizedBox(
+                    height: isMobile ? 40 : 42,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 12 : 14,
+                        vertical: 0,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.textPrimary,
+                        borderRadius: BorderRadius.circular(AppRadius.btn),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.swap_horiz,
+                            color: AppColors.accent,
+                            size: 17,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            l10n.myListChangeStatus,
+                            style: TextStyle(
+                              color: AppColors.accent,
+                              fontWeight: FontWeight.w700,
+                              fontSize: isMobile ? 12 : 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  height: isMobile ? 40 : 42,
+                  width: isMobile ? 44 : 48,
+                  child: Material(
+                    color: AppColors.textPrimary,
+                    borderRadius: BorderRadius.circular(AppRadius.btn),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(AppRadius.btn),
+                      onTap: selectedCount > 0 ? onDelete : null,
+                      child: Center(
+                        child: Icon(
+                          Icons.delete_outline,
+                          color: AppColors.accent,
+                          size: deleteIconSize,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(width: AppSpacing.xs),
-            IconButton(
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline,
-                  color: AppColors.accent, size: 18),
-              tooltip: l10n.remove,
-            ),
           ],
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusMenuBadge extends StatelessWidget {
+  const _StatusMenuBadge({
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withAlpha(40),
+        borderRadius: BorderRadius.circular(AppRadius.badge),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
       ),
     );
   }
@@ -1215,5 +1544,20 @@ class _QuickEditDialogState extends State<_QuickEditDialog> {
         ),
       ],
     );
+  }
+}
+
+Color _statusBadgeColor(String status) {
+  switch (status) {
+    case 'watching':
+      return Colors.lightBlueAccent;
+    case 'completed':
+      return Colors.greenAccent;
+    case 'plan-to-watch':
+      return Colors.orangeAccent;
+    case 'dropped':
+      return Colors.redAccent;
+    default:
+      return AppColors.textSecondary;
   }
 }

@@ -390,7 +390,7 @@ class _DetailsTitleBlock extends ConsumerWidget {
       children: [
         // Title + admin edit
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               child: SelectableText(
@@ -401,15 +401,22 @@ class _DetailsTitleBlock extends ConsumerWidget {
             ),
             if (isAdmin)
               Padding(
-                padding: const EdgeInsets.only(left: AppSpacing.sm),
+                padding: const EdgeInsets.only(left: 6),
                 child: _AdminEditButton(details: details),
               ),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: 8),
+
+        // Add to list button — estilo banner (+ Adicionar à lista)
+        AddToListButton(
+          compact: false,
+          details: details,
+        ),
+        const SizedBox(height: 10),
 
         _DetailsMetadataRow(details: details),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: 6),
 
         // Genres
         if (details.genres.isNotEmpty) ...[
@@ -443,18 +450,7 @@ class _DetailsTitleBlock extends ConsumerWidget {
                 )
                 .toList(),
           ),
-          const SizedBox(height: AppSpacing.sm),
-        ],
-
-        if (details.synopsis != null && details.synopsis!.isNotEmpty) ...[
-          TranslatableText(
-            text: details.synopsis!,
-            style: AppTextStyles.body,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            selectable: true,
-          ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: 6),
         ],
 
         // Actions
@@ -463,11 +459,6 @@ class _DetailsTitleBlock extends ConsumerWidget {
             CircularPlayButton(
               size: 52,
               onTap: () => _playFirstEpisode(context, details),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            AddToListButton(
-              compact: true,
-              details: details,
             ),
           ],
         ),
@@ -564,7 +555,7 @@ class _DetailsTabMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final tabs = [
-      (_DetailsTab.overview, l10n.overview),
+      (_DetailsTab.overview, l10n.adminAnimesSynopsis),
       (_DetailsTab.episodes, l10n.episodes),
       (_DetailsTab.links, l10n.links),
       (_DetailsTab.similar, l10n.similar),
