@@ -3,10 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/data/dtos/anime_item_dto.dart';
+import '../../../core/utils/proxied_image.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../home/data/dtos/home_banner_dto.dart';
 import '../../home/data/home_banner_remote_datasource.dart';
 import '../../home/presentation/home_banner_providers.dart';
+import '../../search/data/search_remote_datasource.dart';
+import '../data/dtos/anime_dtos.dart' show AnimeDto;
+import '../domain/animes_providers.dart';
 
 /// Página admin para configurar os banners da home.
 /// Segue o mesmo estilo das outras telas admin (users, animes).
@@ -314,9 +319,9 @@ class _BannerSlotCardState extends ConsumerState<_BannerSlotCard> {
   }
 }
 
-// ─── Dialog de edição de banner ──────────────────────────────────
+// ─── Dialog visual de seleção de banner ──────────────────────────
 
-class _BannerEditDialog extends StatefulWidget {
+class _BannerEditDialog extends ConsumerStatefulWidget {
   const _BannerEditDialog({
     required this.slot,
     this.current,
@@ -326,57 +331,123 @@ class _BannerEditDialog extends StatefulWidget {
   final HomeBannerDto? current;
 
   @override
-  State<_BannerEditDialog> createState() => _BannerEditDialogState();
+  ConsumerState<_BannerEditDialog> createState() => _BannerEditDialogState();
 }
 
-class _BannerEditDialogState extends State<_BannerEditDialog> {
+class _BannerEditDialogState extends ConsumerState<_BannerEditDialog> {
   late bool _isLocal;
-  final _animeIdController = TextEditingController();
-  final _externalIdController = TextEditingController();
-  final _externalProviderController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
+  final _searchController = TextEditingController();
+
+  // Local animes loaded from provider
+  List<AnimeDto> _localAnimes = [];
+  bool _localLoading = true;
+
+  // External search results
+  List<AnimeItemDto> _externalResults = [];
+  bool _externalLoading = false;
 
   @override
   void initState() {
     super.initState();
     final c = widget.current;
     _isLocal = c?.isLocal ?? true;
-    if (c != null) {
-      if (c.isLocal) {
-        _animeIdController.text = '${c.animeId}';
-      } else if (c.isExternal) {
-        _externalIdController.text = c.externalId ?? '';
-        _externalProviderController.text = c.externalProvider ?? '';
-      }
-    }
   }
 
   @override
   void dispose() {
-    _animeIdController.dispose();
-    _externalIdController.dispose();
-    _externalProviderController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    if (!_isLocal && query.trim().length >= 2) {
+      _searchExternal(query.trim());
+    }
+  }
+
+  Future<void> _searchExternal(String query) async {
+    setState(() => _externalLoading = true);
+    try {
+      final client = ref.read(apiClientProvider);
+      final datasource = SearchRemoteDatasource(client);
+      final result = await datasource.search(query: query, limit: 20);
+      if (mounted) {
+        setState(() {
+          _externalResults = result.items;
+          _externalLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _externalLoading = false);
+    }
+  }
+
+  void _selectLocal(AnimeDto anime) {
+    final dto = HomeBannerUpdateDto(animeId: anime.id);
+    Navigator.pop(context, dto);
+  }
+
+  void _selectExternal(AnimeItemDto anime) {
+    final dto = HomeBannerUpdateDto(
+      externalId: anime.externalId ?? '${anime.id}',
+      externalProvider: anime.source,
+    );
+    Navigator.pop(context, dto);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return AlertDialog(
-      title: Text('Editar ${widget.slot}'),
-      content: SizedBox(
-        width: 400,
-        child: Form(
-          key: _formKey,
+    // Load local animes when in local mode
+    if (_isLocal) {
+      final asyncAnimes = ref.watch(animesListProvider);
+      asyncAnimes.whenData((animes) {
+        if (_localAnimes.length != animes.length) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _localAnimes = animes;
+                _localLoading = false;
+              });
+            }
+          });
+        }
+      });
+      if (asyncAnimes.isLoading) {
+        _localLoading = true;
+      }
+    }
+
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 700, maxHeight: 600),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Tipo: local ou externo
-              Text('Tipo de anime',
-                  style: theme.textTheme.labelLarge),
-              const SizedBox(height: 8),
+              // Header
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Selecionar anime — ${widget.slot}',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Toggle local/external
               SegmentedButton<bool>(
                 segments: const [
                   ButtonSegment(
@@ -391,102 +462,214 @@ class _BannerEditDialogState extends State<_BannerEditDialog> {
                   ),
                 ],
                 selected: {_isLocal},
-                onSelectionChanged: (v) =>
-                    setState(() => _isLocal = v.first),
+                onSelectionChanged: (v) => setState(() {
+                  _isLocal = v.first;
+                  _searchController.clear();
+                  _externalResults = [];
+                }),
               ),
+              const SizedBox(height: 12),
 
-              const SizedBox(height: 16),
+              // Search field (external mode)
+              if (!_isLocal)
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Buscar anime externo...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: _externalLoading
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : null,
+                  ),
+                  onChanged: _onSearchChanged,
+                ),
 
-              if (_isLocal) ...[
-                TextFormField(
-                  controller: _animeIdController,
-                  decoration: const InputDecoration(
-                    labelText: 'Anime ID (local)',
-                    hintText: 'Ex: 1',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'ID é obrigatório';
-                    }
-                    if (int.tryParse(v.trim()) == null) {
-                      return 'ID deve ser um número';
-                    }
-                    return null;
-                  },
-                ),
-              ] else ...[
-                TextFormField(
-                  controller: _externalIdController,
-                  decoration: const InputDecoration(
-                    labelText: 'External ID',
-                    hintText: 'Ex: 21 (AniList), 1535 (Kitsu)',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'External ID é obrigatório';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: _externalProviderController.text.isNotEmpty
-                      ? _externalProviderController.text
-                      : null,
-                  decoration: const InputDecoration(
-                    labelText: 'Provider',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                        value: 'AniList', child: Text('AniList')),
-                    DropdownMenuItem(
-                        value: 'Kitsu', child: Text('Kitsu')),
-                    DropdownMenuItem(
-                        value: 'Jikan', child: Text('Jikan')),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) {
-                      _externalProviderController.text = v;
-                    }
-                  },
-                  validator: (v) {
-                    if (v == null || v.isEmpty) {
-                      return 'Provider é obrigatório';
-                    }
-                    return null;
-                  },
-                ),
-              ],
+              if (!_isLocal) const SizedBox(height: 12),
+
+              // Grid of results
+              Expanded(
+                child: _isLocal
+                    ? _buildLocalGrid(theme)
+                    : _buildExternalGrid(theme),
+              ),
             ],
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
+    );
+  }
+
+  Widget _buildLocalGrid(ThemeData theme) {
+    if (_localLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_localAnimes.isEmpty) {
+      return Center(
+        child: Text(
+          'Nenhum anime local cadastrado.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
-        FilledButton(
-          onPressed: () {
-            if (!_formKey.currentState!.validate()) return;
-            final dto = _isLocal
-                ? HomeBannerUpdateDto(
-                    animeId: int.parse(_animeIdController.text.trim()),
-                  )
-                : HomeBannerUpdateDto(
-                    externalId: _externalIdController.text.trim(),
-                    externalProvider:
-                        _externalProviderController.text.trim(),
-                  );
-            Navigator.pop(context, dto);
-          },
-          child: const Text('Salvar'),
+      );
+    }
+
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 160,
+        childAspectRatio: 0.65,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemCount: _localAnimes.length,
+      itemBuilder: (ctx, i) {
+        final anime = _localAnimes[i];
+        return _AnimeGridTile(
+          title: anime.title,
+          coverUrl: anime.coverUrl,
+          subtitle: 'ID: ${anime.id}',
+          onTap: () => _selectLocal(anime),
+        );
+      },
+    );
+  }
+
+  Widget _buildExternalGrid(ThemeData theme) {
+    if (_externalResults.isEmpty && !_externalLoading) {
+      return Center(
+        child: Text(
+          'Digite pelo menos 2 caracteres para buscar.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
-      ],
+      );
+    }
+
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 160,
+        childAspectRatio: 0.65,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemCount: _externalResults.length,
+      itemBuilder: (ctx, i) {
+        final anime = _externalResults[i];
+        return _AnimeGridTile(
+          title: anime.title,
+          coverUrl: anime.coverUrl,
+          subtitle: '${anime.source} — ${anime.externalId ?? anime.id}',
+          onTap: () => _selectExternal(anime),
+        );
+      },
+    );
+  }
+}
+
+/// A grid tile showing an anime cover image, title, and subtitle.
+class _AnimeGridTile extends StatefulWidget {
+  const _AnimeGridTile({
+    required this.title,
+    required this.coverUrl,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final String title;
+  final String? coverUrl;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  State<_AnimeGridTile> createState() => _AnimeGridTileState();
+}
+
+class _AnimeGridTileState extends State<_AnimeGridTile> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: _hovered
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outline.withValues(alpha: 0.3),
+              width: _hovered ? 2 : 1,
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Cover image
+              Expanded(
+                child: widget.coverUrl != null
+                    ? ProxiedImage(
+                        src: widget.coverUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, e, s) => ColoredBox(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          child: const Center(
+                            child: Icon(Icons.image_not_supported, size: 28),
+                          ),
+                        ),
+                      )
+                    : ColoredBox(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        child: const Center(
+                          child: Icon(Icons.image, size: 28),
+                        ),
+                      ),
+              ),
+              // Title + subtitle
+              Container(
+                padding: const EdgeInsets.all(6),
+                color: theme.colorScheme.surface,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      widget.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
