@@ -85,6 +85,9 @@ class _MyListPageState extends ConsumerState<MyListPage> {
   bool _editorMode = false;
   final Set<int> _selectedIds = {};
 
+  /// IDs deletados nesta sessão — evita que o cache do provider os re-adicione.
+  final Set<int> _deletedIds = {};
+
   @override
   void initState() {
     super.initState();
@@ -118,6 +121,7 @@ class _MyListPageState extends ConsumerState<MyListPage> {
   void _resetAndReload() {
     setState(() {
       _items.clear();
+      _deletedIds.clear();
       _currentPage = 1;
       _hasMore = true;
       _loadingMore = false;
@@ -234,7 +238,12 @@ class _MyListPageState extends ConsumerState<MyListPage> {
     for (final id in ids) {
       if (await deleteFunc(id)) {
         successCount++;
-        if (mounted) setState(() => _items.removeWhere((e) => e.id == id));
+        if (mounted) {
+          setState(() {
+            _deletedIds.add(id);
+            _items.removeWhere((e) => e.id == id);
+          });
+        }
       }
     }
     if (!mounted) return;
@@ -268,14 +277,18 @@ class _MyListPageState extends ConsumerState<MyListPage> {
 
     // Accumulate items when data loads
     asyncPage.whenData((page) {
+      // Filter out items that were deleted during this session.
+      final liveItems =
+          page.items.where((e) => !_deletedIds.contains(e.id)).toList();
+
       if (_currentPage == 1) {
         _items
           ..clear()
-          ..addAll(page.items);
+          ..addAll(liveItems);
       } else if (_loadingMore) {
         final existingIds = _items.map((e) => e.id).toSet();
         final newItems =
-            page.items.where((e) => !existingIds.contains(e.id)).toList();
+            liveItems.where((e) => !existingIds.contains(e.id)).toList();
         _items.addAll(newItems);
       }
       _hasMore = page.hasMore;
@@ -528,7 +541,10 @@ class _MyListPageState extends ConsumerState<MyListPage> {
     if (!mounted) return;
 
     if (success) {
-      setState(() => _items.removeWhere((e) => e.id == item.id));
+      setState(() {
+        _deletedIds.add(item.id);
+        _items.removeWhere((e) => e.id == item.id);
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.myListRemoved)),
       );
@@ -649,9 +665,28 @@ class _MyListCardState extends State<_MyListCard> {
         onTap: widget.editorMode
             ? widget.onToggleSelect
             : () {
-                final id = item.externalId ?? '${item.animeId ?? item.id}';
-                final source = item.externalProvider ?? 'local';
-                context.push('/anime/$source/$id');
+                // ── Navegação para detalhes ──
+                // Itens locais: animeId deve existir e > 0.
+                // Itens externos: externalProvider + externalId.
+                final isExternal = item.externalProvider != null &&
+                    item.externalProvider!.isNotEmpty &&
+                    item.externalId != null &&
+                    item.externalId!.isNotEmpty;
+
+                if (isExternal) {
+                  context.push(
+                      '/anime/${item.externalProvider}/${item.externalId}');
+                } else if (item.animeId != null && item.animeId! > 0) {
+                  context.push('/anime/local/${item.animeId}');
+                } else {
+                  // Item inválido — sem rota válida para detalhes.
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(AppLocalizations.of(context)!
+                          .unexpectedError),
+                    ),
+                  );
+                }
               },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
