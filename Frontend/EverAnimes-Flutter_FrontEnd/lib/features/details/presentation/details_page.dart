@@ -390,7 +390,7 @@ class _DetailsTitleBlock extends ConsumerWidget {
       children: [
         // Title + admin edit
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               child: SelectableText(
@@ -399,17 +399,24 @@ class _DetailsTitleBlock extends ConsumerWidget {
                 maxLines: 3,
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.only(left: 6),
+              child: AddToListButton(
+                compact: true,
+                details: details,
+              ),
+            ),
             if (isAdmin)
               Padding(
-                padding: const EdgeInsets.only(left: AppSpacing.sm),
+                padding: const EdgeInsets.only(left: 6),
                 child: _AdminEditButton(details: details),
               ),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: 6),
 
         _DetailsMetadataRow(details: details),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: 6),
 
         // Genres
         if (details.genres.isNotEmpty) ...[
@@ -443,7 +450,7 @@ class _DetailsTitleBlock extends ConsumerWidget {
                 )
                 .toList(),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: 6),
         ],
 
         // Actions
@@ -452,11 +459,6 @@ class _DetailsTitleBlock extends ConsumerWidget {
             CircularPlayButton(
               size: 52,
               onTap: () => _playFirstEpisode(context, details),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            AddToListButton(
-              compact: true,
-              details: details,
             ),
           ],
         ),

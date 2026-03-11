@@ -739,60 +739,62 @@ class _StatusFilterDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final selectedLabel = value == null ? l10n.all : _localizeStatus(value!, l10n);
-    final selectedColor = value == null ? AppColors.textPrimary : _statusBadgeColor(value!);
 
-    return PopupMenuButton<String?>(
-      tooltip: l10n.all,
-      color: AppColors.surface,
-      position: PopupMenuPosition.under,
-      constraints: const BoxConstraints(maxWidth: 220),
-      onSelected: onChanged,
-      itemBuilder: (_) => _kStatusOptions
-          .map(
-            (s) => PopupMenuItem<String?>(
-              value: s,
-              child: s == null
-                  ? Text(
-                      l10n.all,
-                      style: const TextStyle(color: AppColors.textPrimary),
-                    )
-                  : Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _statusBadgeColor(s).withAlpha(40),
-                        borderRadius: BorderRadius.circular(AppRadius.badge),
-                      ),
-                      child: Text(
-                        _localizeStatus(s, l10n),
-                        style: TextStyle(
-                          color: _statusBadgeColor(s),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
+    return _FilterFieldShell(
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String?>(
+          value: value,
+          isExpanded: true,
+          menuMaxHeight: 280,
+          dropdownColor: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          icon: const Icon(Icons.filter_list, color: AppColors.textSecondary, size: 18),
+          style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
+          selectedItemBuilder: (context) => _kStatusOptions
+              .map(
+                (s) => Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    s == null ? l10n.all : _localizeStatus(s, l10n),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: s == null ? AppColors.textPrimary : _statusBadgeColor(s),
+                      fontSize: 13,
+                      fontWeight: s == null ? FontWeight.w500 : FontWeight.w700,
                     ),
-            ),
-          )
-          .toList(),
-      child: _FilterFieldShell(
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                selectedLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: selectedColor,
-                  fontSize: 13,
-                  fontWeight: value == null ? FontWeight.w500 : FontWeight.w700,
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.filter_list, color: AppColors.textSecondary, size: 18),
-          ],
+              )
+              .toList(),
+          items: _kStatusOptions
+              .map(
+                (s) => DropdownMenuItem<String?>(
+                  value: s,
+                  child: s == null
+                      ? Text(
+                          l10n.all,
+                          style: const TextStyle(color: AppColors.textPrimary),
+                        )
+                      : Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: _statusBadgeColor(s).withAlpha(40),
+                            borderRadius: BorderRadius.circular(AppRadius.badge),
+                          ),
+                          child: Text(
+                            _localizeStatus(s, l10n),
+                            style: TextStyle(
+                              color: _statusBadgeColor(s),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                ),
+              )
+              .toList(),
+          onChanged: onChanged,
         ),
       ),
     );
@@ -1119,40 +1121,48 @@ class _YearFilterChip extends StatelessWidget {
     final years = List.generate(30, (i) => currentYear - i);
     final active = value != null;
 
-    return PopupMenuButton<int?>(
-      tooltip: l10n.year,
-      color: AppColors.surface,
-      position: PopupMenuPosition.under,
-      constraints: const BoxConstraints(maxWidth: 180, maxHeight: 280),
-      onSelected: onChanged,
-      itemBuilder: (_) => [
-        PopupMenuItem<int?>(value: null, child: Text(l10n.all)),
-        ...years.map((y) => PopupMenuItem<int?>(value: y, child: Text('$y'))),
-      ],
-      child: _FilterFieldShell(
-        borderColor: active ? AppColors.accent : null,
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                value?.toString() ?? l10n.year,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+    return _FilterFieldShell(
+      borderColor: active ? AppColors.accent : null,
+      child: Row(
+        children: [
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int?>(
+                value: value,
+                isExpanded: true,
+                menuMaxHeight: 280,
+                dropdownColor: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.card),
+                hint: Text(
+                  l10n.year,
+                  style: TextStyle(
+                    color: active ? AppColors.accent : AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
                 style: TextStyle(
-                  color: active ? AppColors.accent : AppColors.textSecondary,
+                  color: active ? AppColors.accent : AppColors.textPrimary,
                   fontSize: 13,
                   fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                 ),
+                icon: const SizedBox.shrink(),
+                items: [
+                  DropdownMenuItem<int?>(value: null, child: Text(l10n.all)),
+                  ...years.map((y) => DropdownMenuItem<int?>(value: y, child: Text('$y'))),
+                ],
+                onChanged: onChanged,
               ),
             ),
-            const SizedBox(width: 8),
-            Icon(
-              active ? Icons.close : Icons.arrow_drop_down,
-              color: active ? AppColors.accent : AppColors.textSecondary,
-              size: 18,
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 6),
+          if (active)
+            GestureDetector(
+              onTap: () => onChanged(null),
+              child: const Icon(Icons.close, color: AppColors.accent, size: 17),
+            )
+          else
+            const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary, size: 18),
+        ],
       ),
     );
   }
@@ -1171,38 +1181,22 @@ class _SortDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return PopupMenuButton<_SortMode>(
-      tooltip: l10n.myListSortDateAdded,
-      color: AppColors.surface,
-      position: PopupMenuPosition.under,
-      constraints: const BoxConstraints(maxWidth: 220),
-      onSelected: onChanged,
-      itemBuilder: (_) => _SortMode.values
-          .map(
-            (m) => PopupMenuItem<_SortMode>(
-              value: m,
-              child: Text(_sortLabel(m, l10n)),
-            ),
-          )
-          .toList(),
-      child: _FilterFieldShell(
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                _sortLabel(value, l10n),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.sort, color: AppColors.textSecondary, size: 18),
-          ],
+    return _FilterFieldShell(
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<_SortMode>(
+          value: value,
+          isExpanded: true,
+          menuMaxHeight: 280,
+          dropdownColor: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+          icon: const Icon(Icons.sort, color: AppColors.textSecondary, size: 18),
+          items: _SortMode.values
+              .map((m) => DropdownMenuItem<_SortMode>(value: m, child: Text(_sortLabel(m, l10n))))
+              .toList(),
+          onChanged: (m) {
+            if (m != null) onChanged(m);
+          },
         ),
       ),
     );
