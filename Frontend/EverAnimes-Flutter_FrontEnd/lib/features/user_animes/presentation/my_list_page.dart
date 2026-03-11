@@ -430,14 +430,14 @@ class _MyListPageState extends ConsumerState<MyListPage> {
                                 runSpacing: AppSpacing.sm,
                                 children: [
                                   SizedBox(
-                                    width: minWidth,
+                                    width: minWidth > 150 ? 150 : minWidth,
                                     child: _StatusFilterDropdown(
                                       value: _selectedStatus,
                                       onChanged: _onStatusChanged,
                                     ),
                                   ),
                                   SizedBox(
-                                    width: minWidth,
+                                    width: minWidth > 120 ? 120 : minWidth,
                                     child: _YearFilterChip(
                                       value: _yearFilter,
                                       onChanged: (y) {
@@ -447,7 +447,7 @@ class _MyListPageState extends ConsumerState<MyListPage> {
                                     ),
                                   ),
                                   SizedBox(
-                                    width: minWidth,
+                                    width: minWidth > 180 ? 180 : minWidth,
                                     child: _SortDropdown(
                                       value: _sortMode,
                                       onChanged: (m) => setState(() => _sortMode = m),
@@ -490,18 +490,18 @@ class _MyListPageState extends ConsumerState<MyListPage> {
 
                         return Row(
                           children: [
-                            Expanded(flex: 4, child: buildSearchField()),
+                            Expanded(child: buildSearchField()),
                             const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              flex: 2,
+                            SizedBox(
+                              width: 150,
                               child: _StatusFilterDropdown(
                                 value: _selectedStatus,
                                 onChanged: _onStatusChanged,
                               ),
                             ),
                             const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              flex: 2,
+                            SizedBox(
+                              width: 120,
                               child: _YearFilterChip(
                                 value: _yearFilter,
                                 onChanged: (y) {
@@ -511,8 +511,8 @@ class _MyListPageState extends ConsumerState<MyListPage> {
                               ),
                             ),
                             const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              flex: 3,
+                            SizedBox(
+                              width: 180,
                               child: _SortDropdown(
                                 value: _sortMode,
                                 onChanged: (m) => setState(() => _sortMode = m),
@@ -739,80 +739,58 @@ class _StatusFilterDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppColors.bgBase,
-        borderRadius: BorderRadius.circular(AppRadius.btn),
-        border: Border.all(color: AppColors.surfaceVariant.withAlpha(120)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String?>(
-          value: value,
-          isExpanded: true,
-          dropdownColor: AppColors.surface,
-          style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
-          icon: const Icon(Icons.filter_list,
-              color: AppColors.textSecondary, size: 18),
-          selectedItemBuilder: (context) {
-            return _kStatusOptions
-                .map((s) {
-                  if (s == null) {
-                    return Text(
+    final selectedLabel = value == null ? l10n.all : _localizeStatus(value!, l10n);
+    final selectedColor = value == null ? AppColors.textPrimary : _statusBadgeColor(value!);
+
+    return PopupMenuButton<String?>(
+      tooltip: l10n.all,
+      color: AppColors.surface,
+      onSelected: onChanged,
+      itemBuilder: (_) => _kStatusOptions
+          .map(
+            (s) => PopupMenuItem<String?>(
+              value: s,
+              child: s == null
+                  ? Text(
                       l10n.all,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 13,
+                      style: const TextStyle(color: AppColors.textPrimary),
+                    )
+                  : Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _statusBadgeColor(s).withAlpha(40),
+                        borderRadius: BorderRadius.circular(AppRadius.badge),
                       ),
-                    );
-                  }
-                  final color = _statusBadgeColor(s);
-                  return Text(
-                    _localizeStatus(s, l10n),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                      child: Text(
+                        _localizeStatus(s, l10n),
+                        style: TextStyle(
+                          color: _statusBadgeColor(s),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
                     ),
-                  );
-                })
-                .toList();
-          },
-          items: _kStatusOptions
-              .map((s) => DropdownMenuItem<String?>(
-                    value: s,
-                    child: s == null
-                        ? Text(
-                            l10n.all,
-                            style: const TextStyle(color: AppColors.textPrimary),
-                          )
-                        : Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _statusBadgeColor(s).withAlpha(40),
-                              borderRadius: BorderRadius.circular(AppRadius.badge),
-                            ),
-                            child: Text(
-                              _localizeStatus(s, l10n),
-                              style: TextStyle(
-                                color: _statusBadgeColor(s),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                  ))
-              .toList(),
-          onChanged: onChanged,
+            ),
+          )
+          .toList(),
+      child: _FilterFieldShell(
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                selectedLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: selectedColor,
+                  fontSize: 13,
+                  fontWeight: value == null ? FontWeight.w500 : FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.filter_list, color: AppColors.textSecondary, size: 18),
+          ],
         ),
       ),
     );
@@ -1139,45 +1117,37 @@ class _YearFilterChip extends StatelessWidget {
     final years = List.generate(30, (i) => currentYear - i);
     final active = value != null;
 
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppColors.bgBase,
-        borderRadius: BorderRadius.circular(AppRadius.btn),
-        border: Border.all(
-          color: active
-              ? AppColors.accent
-              : AppColors.surfaceVariant.withAlpha(120),
-        ),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int?>(
-          value: value,
-          isExpanded: true,
-          hint: Text(
-            l10n.year,
-            style: TextStyle(
-              color: active ? AppColors.accent : AppColors.textSecondary,
-              fontSize: 13,
+    return PopupMenuButton<int?>(
+      tooltip: l10n.year,
+      color: AppColors.surface,
+      onSelected: onChanged,
+      itemBuilder: (_) => [
+        PopupMenuItem<int?>(value: null, child: Text(l10n.all)),
+        ...years.map((y) => PopupMenuItem<int?>(value: y, child: Text('$y'))),
+      ],
+      child: _FilterFieldShell(
+        borderColor: active ? AppColors.accent : null,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                value?.toString() ?? l10n.year,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: active ? AppColors.accent : AppColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
             ),
-          ),
-          dropdownColor: AppColors.surface,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-          icon: active
-              ? GestureDetector(
-                  onTap: () => onChanged(null),
-                  child: const Icon(Icons.close, color: AppColors.accent, size: 16),
-                )
-              : const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary, size: 18),
-          items: years
-              .map((y) => DropdownMenuItem<int?>(
-                    value: y,
-                    child: Text('$y'),
-                  ))
-              .toList(),
-          onChanged: onChanged,
+            const SizedBox(width: 8),
+            Icon(
+              active ? Icons.close : Icons.arrow_drop_down,
+              color: active ? AppColors.accent : AppColors.textSecondary,
+              size: 18,
+            ),
+          ],
         ),
       ),
     );
@@ -1197,31 +1167,36 @@ class _SortDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppColors.bgBase,
-        borderRadius: BorderRadius.circular(AppRadius.btn),
-        border: Border.all(color: AppColors.surfaceVariant.withAlpha(120)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<_SortMode>(
-          value: value,
-          isExpanded: true,
-          dropdownColor: AppColors.surface,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-          icon: const Icon(Icons.sort, color: AppColors.textSecondary, size: 18),
-          items: _SortMode.values
-              .map((m) => DropdownMenuItem(
-                    value: m,
-                    child: Text(_sortLabel(m, l10n)),
-                  ))
-              .toList(),
-          onChanged: (m) {
-            if (m != null) onChanged(m);
-          },
+    return PopupMenuButton<_SortMode>(
+      tooltip: l10n.myListSortDateAdded,
+      color: AppColors.surface,
+      onSelected: onChanged,
+      itemBuilder: (_) => _SortMode.values
+          .map(
+            (m) => PopupMenuItem<_SortMode>(
+              value: m,
+              child: Text(_sortLabel(m, l10n)),
+            ),
+          )
+          .toList(),
+      child: _FilterFieldShell(
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                _sortLabel(value, l10n),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.sort, color: AppColors.textSecondary, size: 18),
+          ],
         ),
       ),
     );
@@ -1242,6 +1217,33 @@ class _SortDropdown extends StatelessWidget {
       case _SortMode.dateUpdatedDesc:
         return l10n.myListSortDateUpdated;
     }
+  }
+}
+
+class _FilterFieldShell extends StatelessWidget {
+  const _FilterFieldShell({
+    required this.child,
+    this.borderColor,
+  });
+
+  final Widget child;
+  final Color? borderColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.bgBase,
+        borderRadius: BorderRadius.circular(AppRadius.btn),
+        border: Border.all(
+          color: borderColor ?? AppColors.surfaceVariant.withAlpha(120),
+        ),
+      ),
+      child: child,
+    );
   }
 }
 
