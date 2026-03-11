@@ -75,7 +75,7 @@ class AdminAnimesPage extends ConsumerWidget {
           final created = await datasource.create(createDto);
           // 2) PUT /api/animes/{id}/details com detalhes locais
           await datasource.updateDetails(created.id, detailsDto);
-          ref.invalidate(animesListProvider);
+          await ref.refresh(animesListProvider.future);
         },
       ),
     );
@@ -217,7 +217,7 @@ class _AnimesList extends ConsumerWidget {
           );
           // 2) PUT /api/animes/{id}/details (detalhes locais)
           await datasource.updateDetails(anime.id, detailsDto);
-          ref.invalidate(animesListProvider);
+          await ref.refresh(animesListProvider.future);
         },
       ),
     );

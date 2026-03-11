@@ -68,7 +68,7 @@ class AdminUsersPage extends ConsumerWidget {
           await datasource.create(
             UserCreateDto(email: email, password: password!, role: role),
           );
-          ref.invalidate(usersListProvider);
+          await ref.refresh(usersListProvider.future);
         },
       ),
     );
@@ -167,7 +167,7 @@ class _UsersList extends ConsumerWidget {
               role: role != user.role ? role : null,
             ),
           );
-          ref.invalidate(usersListProvider);
+          await ref.refresh(usersListProvider.future);
         },
       ),
     );
