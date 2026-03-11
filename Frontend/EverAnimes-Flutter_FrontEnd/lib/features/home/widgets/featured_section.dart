@@ -242,12 +242,12 @@ class _FeaturedContent extends StatelessWidget {
           // ── 6-B Overlay gradients ───────────────────────────────────
           const _FeaturedOverlay(),
 
-          // ── 6-C Info Panel (esquerda / full-width on mobile) ────────
+          // ── 6-C Info Panel (esquerda / constrained on mobile) ──────
           Positioned(
-            left: isMobile ? AppSpacing.md : 64,
+            left: isMobile ? AppSpacing.sm : 64,
             top: 0,
             bottom: 0,
-            right: isMobile ? AppSpacing.md : null,
+            right: isMobile ? 56 : null,
             width: isMobile ? null : 380,
             child: _FeaturedInfoPanel(
               anime: anime,
@@ -274,18 +274,18 @@ class _FeaturedContent extends StatelessWidget {
               ),
             ),
 
-          // ── 6-E Side Menu — hidden on mobile ───────────────────────
-          if (!isMobile)
-            Positioned(
-              right: 0,
-              top: 0,
-              bottom: 0,
-              child: _FeaturedSideMenu(
-                anime: anime,
-                activeTab: activeTab,
-                onTabChange: onTabChange,
-              ),
+          // ── 6-E Side Menu (right column — both mobile and desktop) ──
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: _FeaturedSideMenu(
+              anime: anime,
+              activeTab: activeTab,
+              onTabChange: onTabChange,
+              compact: isMobile,
             ),
+          ),
         ],
       ),
     );
@@ -566,7 +566,7 @@ class _TabContent extends ConsumerWidget {
           width: double.infinity,
           child: Text(
             synopsis,
-            maxLines: 5,
+            maxLines: AppBreakpoints.isMobile(context) ? 3 : 5,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 13,
@@ -775,11 +775,13 @@ class _FeaturedSideMenu extends StatelessWidget {
     required this.anime,
     required this.activeTab,
     required this.onTabChange,
+    this.compact = false,
   });
 
   final AnimeItemDto anime;
   final _SideTab activeTab;
   final ValueChanged<_SideTab> onTabChange;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -792,7 +794,7 @@ class _FeaturedSideMenu extends StatelessWidget {
     ];
     return Center(
       child: Padding(
-        padding: const EdgeInsets.only(right: AppSpacing.xl),
+        padding: EdgeInsets.only(right: compact ? AppSpacing.xs : AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -804,6 +806,7 @@ class _FeaturedSideMenu extends StatelessWidget {
               icon: icon,
               isActive: isActive,
               onTap: () => onTabChange(tab),
+              compact: compact,
             );
           }).toList(),
         ),
@@ -818,12 +821,14 @@ class _SideTabButton extends StatefulWidget {
     required this.icon,
     required this.isActive,
     required this.onTap,
+    this.compact = false,
   });
 
   final String label;
   final IconData icon;
   final bool isActive;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   State<_SideTabButton> createState() => _SideTabButtonState();
@@ -835,6 +840,44 @@ class _SideTabButtonState extends State<_SideTabButton> {
   @override
   Widget build(BuildContext context) {
     final highlighted = widget.isActive || _hovered;
+
+    if (widget.compact) {
+      // Mobile: icon-only vertical buttons
+      return MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Tooltip(
+            message: widget.label,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              margin: const EdgeInsets.symmetric(vertical: 3),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: highlighted
+                    ? AppColors.surfaceVariant.withValues(alpha: 0.9)
+                    : Colors.black.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(AppRadius.btn),
+                border: widget.isActive
+                    ? Border.all(color: AppColors.accent, width: 1)
+                    : null,
+              ),
+              child: Icon(
+                widget.icon,
+                size: 18,
+                color: highlighted
+                    ? AppColors.textPrimary
+                    : AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Desktop: icon + label
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
