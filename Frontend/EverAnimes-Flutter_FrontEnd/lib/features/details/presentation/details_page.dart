@@ -1103,7 +1103,33 @@ class _AdminEditButton extends ConsumerWidget {
       final datasource = ref.read(animesDatasourceProvider);
 
       if (result.isCreate) {
+        final existingLocal = await ref.read(animesListProvider.future);
+        final normalizedTitle = details.title.trim().toLowerCase();
+        int? duplicateId;
+        for (final anime in existingLocal) {
+          final sameTitle = anime.title.trim().toLowerCase() == normalizedTitle;
+          final sameYear = anime.year != null && details.year != null
+              ? anime.year == details.year
+              : true;
+          if (sameTitle && sameYear) {
+            duplicateId = anime.id;
+            break;
+          }
+        }
+
+        if (duplicateId != null) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Este anime já existe no banco local.'),
+              ),
+            );
+          }
+          return;
+        }
+
         await datasource.create(result.createDto!);
+        await ref.refresh(animesListProvider.future);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Anime created in local DB')),
