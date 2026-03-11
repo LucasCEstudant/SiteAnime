@@ -745,6 +745,8 @@ class _StatusFilterDropdown extends StatelessWidget {
     return PopupMenuButton<String?>(
       tooltip: l10n.all,
       color: AppColors.surface,
+      position: PopupMenuPosition.under,
+      constraints: const BoxConstraints(maxWidth: 220),
       onSelected: onChanged,
       itemBuilder: (_) => _kStatusOptions
           .map(
@@ -1120,6 +1122,8 @@ class _YearFilterChip extends StatelessWidget {
     return PopupMenuButton<int?>(
       tooltip: l10n.year,
       color: AppColors.surface,
+      position: PopupMenuPosition.under,
+      constraints: const BoxConstraints(maxWidth: 180, maxHeight: 280),
       onSelected: onChanged,
       itemBuilder: (_) => [
         PopupMenuItem<int?>(value: null, child: Text(l10n.all)),
@@ -1170,6 +1174,8 @@ class _SortDropdown extends StatelessWidget {
     return PopupMenuButton<_SortMode>(
       tooltip: l10n.myListSortDateAdded,
       color: AppColors.surface,
+      position: PopupMenuPosition.under,
+      constraints: const BoxConstraints(maxWidth: 220),
       onSelected: onChanged,
       itemBuilder: (_) => _SortMode.values
           .map(
@@ -1266,17 +1272,17 @@ class _EditorActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final isMobile = MediaQuery.of(context).size.width < 640;
-    final deleteIconSize = isMobile ? 24.0 : 28.0;
+    final deleteIconSize = isMobile ? 20.0 : 22.0;
 
     return SafeArea(
       top: false,
       child: Container(
         padding: EdgeInsets.symmetric(
           horizontal: isMobile ? 12 : 18,
-          vertical: isMobile ? 10 : 12,
+          vertical: isMobile ? 8 : 10,
         ),
         decoration: const BoxDecoration(
-          color: AppColors.accent,
+          color: Color(0xFFB3262D),
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(AppRadius.card),
             topRight: Radius.circular(AppRadius.card),
@@ -1287,71 +1293,102 @@ class _EditorActionBar extends StatelessWidget {
             Expanded(
               child: Text(
                 l10n.myListSelectedCount(selectedCount),
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textPrimary,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
+                  fontSize: isMobile ? 14 : 16,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
             Wrap(
               spacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 PopupMenuButton<String>(
                   tooltip: l10n.myListChangeStatus,
                   enabled: selectedCount > 0,
                   color: AppColors.surface,
                   onSelected: onChangeStatus,
+                  position: PopupMenuPosition.under,
+                  constraints: const BoxConstraints(maxWidth: 240),
                   itemBuilder: (_) => [
-                    PopupMenuItem(value: 'watching', child: Text(l10n.myListStatusWatching)),
-                    PopupMenuItem(value: 'completed', child: Text(l10n.myListStatusCompleted)),
-                    PopupMenuItem(value: 'plan-to-watch', child: Text(l10n.myListStatusPlanToWatch)),
-                    PopupMenuItem(value: 'dropped', child: Text(l10n.myListStatusDropped)),
+                    PopupMenuItem(
+                      value: 'watching',
+                      child: _StatusMenuBadge(
+                        label: l10n.myListStatusWatching,
+                        color: _statusBadgeColor('watching'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'completed',
+                      child: _StatusMenuBadge(
+                        label: l10n.myListStatusCompleted,
+                        color: _statusBadgeColor('completed'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'plan-to-watch',
+                      child: _StatusMenuBadge(
+                        label: l10n.myListStatusPlanToWatch,
+                        color: _statusBadgeColor('plan-to-watch'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'dropped',
+                      child: _StatusMenuBadge(
+                        label: l10n.myListStatusDropped,
+                        color: _statusBadgeColor('dropped'),
+                      ),
+                    ),
                   ],
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.textPrimary,
-                      borderRadius: BorderRadius.circular(AppRadius.btn),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.swap_horiz,
-                          color: AppColors.accent,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          l10n.myListChangeStatus,
-                          style: const TextStyle(
+                  child: SizedBox(
+                    height: isMobile ? 40 : 42,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 12 : 14,
+                        vertical: 0,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.textPrimary,
+                        borderRadius: BorderRadius.circular(AppRadius.btn),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.swap_horiz,
                             color: AppColors.accent,
-                            fontWeight: FontWeight.w700,
+                            size: 17,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 6),
+                          Text(
+                            l10n.myListChangeStatus,
+                            style: TextStyle(
+                              color: AppColors.accent,
+                              fontWeight: FontWeight.w700,
+                              fontSize: isMobile ? 12 : 13,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                Material(
-                  color: AppColors.textPrimary,
-                  borderRadius: BorderRadius.circular(AppRadius.btn),
-                  child: InkWell(
+                SizedBox(
+                  height: isMobile ? 40 : 42,
+                  width: isMobile ? 44 : 48,
+                  child: Material(
+                    color: AppColors.textPrimary,
                     borderRadius: BorderRadius.circular(AppRadius.btn),
-                    onTap: selectedCount > 0 ? onDelete : null,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isMobile ? 14 : 16,
-                        vertical: isMobile ? 9 : 10,
-                      ),
-                      child: Icon(
-                        Icons.delete_outline,
-                        color: AppColors.accent,
-                        size: deleteIconSize,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(AppRadius.btn),
+                      onTap: selectedCount > 0 ? onDelete : null,
+                      child: Center(
+                        child: Icon(
+                          Icons.delete_outline,
+                          color: AppColors.accent,
+                          size: deleteIconSize,
+                        ),
                       ),
                     ),
                   ),
@@ -1359,6 +1396,35 @@ class _EditorActionBar extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusMenuBadge extends StatelessWidget {
+  const _StatusMenuBadge({
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withAlpha(40),
+        borderRadius: BorderRadius.circular(AppRadius.badge),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
         ),
       ),
     );
