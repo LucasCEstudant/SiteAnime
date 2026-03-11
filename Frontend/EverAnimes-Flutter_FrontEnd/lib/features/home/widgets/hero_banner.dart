@@ -263,8 +263,24 @@ class _HeroInfoPanel extends StatelessWidget {
         _HeroMetadataRow(anime: anime),
         const SizedBox(height: AppSpacing.md),
 
-        // ── 3-E AddToListButton ─────────────────────────────────────────
-        AddToListButton(anime: anime),
+        // ── 3-E AddToListButton + Details ───────────────────────────────
+        Row(
+          children: [
+            AddToListButton(anime: anime),
+            const SizedBox(width: AppSpacing.sm),
+            TextButton.icon(
+              onPressed: onNavigate,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textSecondary,
+              ),
+              icon: const Icon(Icons.info_outline, size: 16),
+              label: Text(
+                AppLocalizations.of(context)!.homeDetails,
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
