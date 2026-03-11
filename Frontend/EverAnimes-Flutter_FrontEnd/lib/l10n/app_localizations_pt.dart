@@ -407,10 +407,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get adminManageAnimesDesc => 'CRUD de animes locais';
 
   @override
-  String get adminApiTest => 'Teste API';
+  String get adminApiTest => 'API Explorer';
 
   @override
-  String get adminApiTestDesc => 'Diagnóstico e testes de endpoints';
+  String get adminApiTestDesc => 'Navegar e testar endpoints da API';
 
   @override
   String get adminNavigation => 'Navegação';
@@ -560,7 +560,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get adminUsersDeleteWarning => 'Esta ação não pode ser desfeita.';
 
   @override
-  String get apiTestTitle => 'Teste de API';
+  String get apiTestTitle => 'API Explorer';
 
   @override
   String apiTestUnexpectedError(String error) {
@@ -568,7 +568,28 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String get apiTestRepeat => 'Repetir testes';
+  String get apiTestRepeat => 'Atualizar';
+
+  @override
+  String get apiExplorerNoEndpoints => 'Nenhum endpoint encontrado';
+
+  @override
+  String get apiExplorerTryIt => 'Testar';
+
+  @override
+  String get apiExplorerSend => 'Enviar';
+
+  @override
+  String get apiExplorerResponse => 'Resposta';
+
+  @override
+  String get apiExplorerParams => 'Parâmetros';
+
+  @override
+  String get apiExplorerRequired => 'obrigatório';
+
+  @override
+  String get apiExplorerBody => 'Corpo da Requisição';
 
   @override
   String get accessDeniedTitle => 'Acesso Negado';
@@ -674,4 +695,64 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get myListStatusOnHold => 'Em Pausa';
+
+  @override
+  String get myListEditorMode => 'Modo editor';
+
+  @override
+  String get myListExitEditor => 'Sair do editor';
+
+  @override
+  String get myListSortAZ => 'A → Z';
+
+  @override
+  String get myListSortZA => 'Z → A';
+
+  @override
+  String get myListSortYearDesc => 'Ano ↓';
+
+  @override
+  String get myListSortYearAsc => 'Ano ↑';
+
+  @override
+  String get myListSortDateAdded => 'Adicionados recentemente';
+
+  @override
+  String get myListSortDateUpdated => 'Atualizados recentemente';
+
+  @override
+  String get myListSelectAll => 'Selecionar tudo';
+
+  @override
+  String get myListDeselectAll => 'Desmarcar';
+
+  @override
+  String myListSelectedCount(int count) {
+    return '$count selecionado(s)';
+  }
+
+  @override
+  String get myListChangeStatus => 'Alterar status';
+
+  @override
+  String myListItemsUpdated(int count) {
+    return '$count item(ns) atualizado(s)';
+  }
+
+  @override
+  String get myListUpdated => 'Atualizado com sucesso';
+
+  @override
+  String get myListScore => 'Nota (0–10)';
+
+  @override
+  String get myListEpisodesWatched => 'Episódios assistidos';
+
+  @override
+  String get myListNotes => 'Notas';
+
+  @override
+  String apiExplorerEndpointCount(int count) {
+    return '$count endpoints';
+  }
 }

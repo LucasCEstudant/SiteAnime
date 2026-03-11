@@ -12,29 +12,29 @@ volumes:
     name: animehub_libretranslate_models
   libretranslate_cache:
     name: animehub_libretranslate_cache
-  sqlserver_data:
-    name: animehub_sqlserver_data
+  postgres_data:
+    name: animehub_postgres_data
 
 services:
-  # ── SQL Server ────────────────────────────────────────────────────────
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: animehub-sqlserver
+  # ── PostgreSQL ────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: animehub-postgres
     environment:
-      - ACCEPT_EULA=Y
-      - SA_PASSWORD=AnimeHub@2026!
-      - MSSQL_PID=Express
+      - POSTGRES_USER=animehub
+      - POSTGRES_PASSWORD=AnimeHub@2026!
+      - POSTGRES_DB=AnimeHubDb
     ports:
-      - "32303:1433"
+      - "32303:5432"
     volumes:
-      - sqlserver_data:/var/opt/mssql
+      - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "AnimeHub@2026!" -C -Q "SELECT 1" -b
-      interval: 15s
-      timeout: 10s
+      test: ["CMD-SHELL", "pg_isready -U animehub -d AnimeHubDb"]
+      interval: 10s
+      timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 15s
 
   # ── LibreTranslate ────────────────────────────────────────────────────
   libretranslate:
@@ -69,12 +69,12 @@ services:
       dockerfile: ./src/AnimeHub.Api/Dockerfile
     container_name: animehub-api
     depends_on:
-      sqlserver:
+      postgres:
         condition: service_healthy
       realesrgan:
         condition: service_healthy
     environment:
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=AnimeHubDb;User Id=sa;Password=AnimeHub@2026!;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=AnimeHubDb;Username=animehub;Password=AnimeHub@2026!
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:80
       - Translation__BaseUrl=http://libretranslate:5000

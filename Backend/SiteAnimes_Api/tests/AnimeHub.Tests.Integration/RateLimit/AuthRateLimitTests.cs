@@ -16,8 +16,8 @@ public sealed class AuthRateLimitTests : IClassFixture<ApiFactory>
 
         HttpResponseMessage? last = null;
 
-        // ajuste conforme sua policy "auth-login" (ex: 10 por minuto)
-        for (var i = 0; i < 11; i++)
+        // ajuste conforme sua policy "auth-login" (ex: 60 por minuto)
+        for (var i = 0; i < 61; i++)
         {
             last = await client.PostAsJsonAsync("/api/auth/login", new
             {

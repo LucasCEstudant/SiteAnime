@@ -867,13 +867,13 @@ abstract class AppLocalizations {
   /// No description provided for @adminApiTest.
   ///
   /// In pt, this message translates to:
-  /// **'Teste API'**
+  /// **'API Explorer'**
   String get adminApiTest;
 
   /// No description provided for @adminApiTestDesc.
   ///
   /// In pt, this message translates to:
-  /// **'Diagnóstico e testes de endpoints'**
+  /// **'Navegar e testar endpoints da API'**
   String get adminApiTestDesc;
 
   /// No description provided for @adminNavigation.
@@ -1149,7 +1149,7 @@ abstract class AppLocalizations {
   /// No description provided for @apiTestTitle.
   ///
   /// In pt, this message translates to:
-  /// **'Teste de API'**
+  /// **'API Explorer'**
   String get apiTestTitle;
 
   /// No description provided for @apiTestUnexpectedError.
@@ -1161,8 +1161,50 @@ abstract class AppLocalizations {
   /// No description provided for @apiTestRepeat.
   ///
   /// In pt, this message translates to:
-  /// **'Repetir testes'**
+  /// **'Atualizar'**
   String get apiTestRepeat;
+
+  /// No description provided for @apiExplorerNoEndpoints.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum endpoint encontrado'**
+  String get apiExplorerNoEndpoints;
+
+  /// No description provided for @apiExplorerTryIt.
+  ///
+  /// In pt, this message translates to:
+  /// **'Testar'**
+  String get apiExplorerTryIt;
+
+  /// No description provided for @apiExplorerSend.
+  ///
+  /// In pt, this message translates to:
+  /// **'Enviar'**
+  String get apiExplorerSend;
+
+  /// No description provided for @apiExplorerResponse.
+  ///
+  /// In pt, this message translates to:
+  /// **'Resposta'**
+  String get apiExplorerResponse;
+
+  /// No description provided for @apiExplorerParams.
+  ///
+  /// In pt, this message translates to:
+  /// **'Parâmetros'**
+  String get apiExplorerParams;
+
+  /// No description provided for @apiExplorerRequired.
+  ///
+  /// In pt, this message translates to:
+  /// **'obrigatório'**
+  String get apiExplorerRequired;
+
+  /// No description provided for @apiExplorerBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Corpo da Requisição'**
+  String get apiExplorerBody;
 
   /// No description provided for @accessDeniedTitle.
   ///
@@ -1361,6 +1403,114 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Em Pausa'**
   String get myListStatusOnHold;
+
+  /// No description provided for @myListEditorMode.
+  ///
+  /// In pt, this message translates to:
+  /// **'Modo editor'**
+  String get myListEditorMode;
+
+  /// No description provided for @myListExitEditor.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sair do editor'**
+  String get myListExitEditor;
+
+  /// No description provided for @myListSortAZ.
+  ///
+  /// In pt, this message translates to:
+  /// **'A → Z'**
+  String get myListSortAZ;
+
+  /// No description provided for @myListSortZA.
+  ///
+  /// In pt, this message translates to:
+  /// **'Z → A'**
+  String get myListSortZA;
+
+  /// No description provided for @myListSortYearDesc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ano ↓'**
+  String get myListSortYearDesc;
+
+  /// No description provided for @myListSortYearAsc.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ano ↑'**
+  String get myListSortYearAsc;
+
+  /// No description provided for @myListSortDateAdded.
+  ///
+  /// In pt, this message translates to:
+  /// **'Adicionados recentemente'**
+  String get myListSortDateAdded;
+
+  /// No description provided for @myListSortDateUpdated.
+  ///
+  /// In pt, this message translates to:
+  /// **'Atualizados recentemente'**
+  String get myListSortDateUpdated;
+
+  /// No description provided for @myListSelectAll.
+  ///
+  /// In pt, this message translates to:
+  /// **'Selecionar tudo'**
+  String get myListSelectAll;
+
+  /// No description provided for @myListDeselectAll.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desmarcar'**
+  String get myListDeselectAll;
+
+  /// No description provided for @myListSelectedCount.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count} selecionado(s)'**
+  String myListSelectedCount(int count);
+
+  /// No description provided for @myListChangeStatus.
+  ///
+  /// In pt, this message translates to:
+  /// **'Alterar status'**
+  String get myListChangeStatus;
+
+  /// No description provided for @myListItemsUpdated.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count} item(ns) atualizado(s)'**
+  String myListItemsUpdated(int count);
+
+  /// No description provided for @myListUpdated.
+  ///
+  /// In pt, this message translates to:
+  /// **'Atualizado com sucesso'**
+  String get myListUpdated;
+
+  /// No description provided for @myListScore.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nota (0–10)'**
+  String get myListScore;
+
+  /// No description provided for @myListEpisodesWatched.
+  ///
+  /// In pt, this message translates to:
+  /// **'Episódios assistidos'**
+  String get myListEpisodesWatched;
+
+  /// No description provided for @myListNotes.
+  ///
+  /// In pt, this message translates to:
+  /// **'Notas'**
+  String get myListNotes;
+
+  /// No description provided for @apiExplorerEndpointCount.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count} endpoints'**
+  String apiExplorerEndpointCount(int count);
 }
 
 class _AppLocalizationsDelegate

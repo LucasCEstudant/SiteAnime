@@ -118,8 +118,10 @@ class PaginatedSearchState {
 /// 2. Se NÃO há texto mas há gêneros: usa GET /api/animes/filters/genre (gêneros separados por vírgula)
 /// 3. Se NÃO há texto e NÃO há gêneros mas há ano: usa GET /api/animes/filters/year
 ///
-/// Regra especial: quando NÃO há texto e o usuário seleciona ano, os gêneros são desmarcados
-/// automaticamente pelo front (implementado no _SearchPageState).
+/// Quando há texto, gêneros e ano são mantidos como filtros adicionais
+/// (o endpoint de busca suporta `Q` + `Genres` + `Year` simultaneamente).
+/// Quando NÃO há texto, ano e gêneros são mutuamente exclusivos (escolher
+/// ano limpa gêneros e vice-versa).
 ///
 /// Expõe [loadMore] para carregar próximas páginas.
 final searchResultsProvider = AsyncNotifierProvider<

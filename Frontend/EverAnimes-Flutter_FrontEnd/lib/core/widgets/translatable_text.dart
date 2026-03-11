@@ -23,6 +23,7 @@ class TranslatableText extends ConsumerStatefulWidget {
     this.overflow,
     this.textAlign,
     this.sourceLang,
+    this.selectable = false,
   });
 
   /// Texto original (idioma de origem, geralmente japonês / romaji ou pt).
@@ -41,6 +42,9 @@ class TranslatableText extends ConsumerStatefulWidget {
 
   /// Idioma de origem (ex.: "ja"). Se null, a API detecta automaticamente.
   final String? sourceLang;
+
+  /// When true, renders a [SelectableText] instead of [Text].
+  final bool selectable;
 
   @override
   ConsumerState<TranslatableText> createState() => _TranslatableTextState();
@@ -131,14 +135,22 @@ class _TranslatableTextState extends ConsumerState<TranslatableText> {
         // Texto principal — sempre visível.
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
-          child: Text(
-            displayText,
-            key: ValueKey(displayText),
-            style: widget.style,
-            maxLines: widget.maxLines,
-            overflow: widget.overflow,
-            textAlign: widget.textAlign,
-          ),
+          child: widget.selectable
+              ? SelectableText(
+                  displayText,
+                  key: ValueKey(displayText),
+                  style: widget.style,
+                  maxLines: widget.maxLines,
+                  textAlign: widget.textAlign,
+                )
+              : Text(
+                  displayText,
+                  key: ValueKey(displayText),
+                  style: widget.style,
+                  maxLines: widget.maxLines,
+                  overflow: widget.overflow,
+                  textAlign: widget.textAlign,
+                ),
         ),
 
         // Loading shimmer overlay — sutil sobre o texto.

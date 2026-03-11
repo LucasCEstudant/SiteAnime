@@ -4,10 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/api/api_client.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/widgets/cors_image.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../home/data/dtos/home_banner_dto.dart';
+import '../../home/data/home_banner_remote_datasource.dart';
+import '../../home/presentation/home_banner_providers.dart';
 import '../data/dtos/anime_dtos.dart';
 import '../domain/animes_providers.dart';
 
@@ -128,6 +132,10 @@ class _AnimesList extends ConsumerWidget {
                 _showEditDialog(context, ref, anime);
               } else if (action == 'delete') {
                 _showDeleteDialog(context, ref, anime);
+              } else if (action == 'set-primary') {
+                _setAsBanner(context, ref, anime, 'home-primary');
+              } else if (action == 'set-secondary') {
+                _setAsBanner(context, ref, anime, 'home-secondary');
               }
             },
             itemBuilder: (_) => [
@@ -140,6 +148,25 @@ class _AnimesList extends ConsumerWidget {
                   contentPadding: EdgeInsets.zero,
                 ),
               ),
+              PopupMenuItem(
+                value: 'set-primary',
+                child: ListTile(
+                  leading: const Icon(Icons.panorama_wide_angle_select),
+                  title: const Text('Banner Principal'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              PopupMenuItem(
+                value: 'set-secondary',
+                child: ListTile(
+                  leading: const Icon(Icons.featured_video_outlined),
+                  title: const Text('Banner Secundário'),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuDivider(),
               PopupMenuItem(
                 value: 'delete',
                 child: ListTile(
@@ -208,6 +235,41 @@ class _AnimesList extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  Future<void> _setAsBanner(
+    BuildContext context,
+    WidgetRef ref,
+    AnimeDto anime,
+    String slot,
+  ) async {
+    try {
+      final datasource = HomeBannerRemoteDatasource(
+          ref.read(apiClientProvider));
+      await datasource.update(
+        slot,
+        HomeBannerUpdateDto(animeId: anime.id),
+      );
+      bustBannerCache(ref);
+      if (context.mounted) {
+        final label = slot == 'home-primary' ? 'Principal' : 'Secundário';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Banner $label definido: ${anime.title}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao definir banner: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 

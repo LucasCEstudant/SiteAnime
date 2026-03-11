@@ -136,15 +136,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   // ─── Debounce de busca (6B) ──────────────────────────────────
 
   void _onSearchChanged(String value) {
-    // Limpa gênero e ano selecionados quando digita texto
-    final currentGenres = ref.read(selectedGenresProvider);
-    if (currentGenres.isNotEmpty) {
-      ref.read(selectedGenresProvider.notifier).clear();
-    }
-    final currentYear = ref.read(selectedYearProvider);
-    if (currentYear != null) {
-      ref.read(selectedYearProvider.notifier).clear();
-    }
+    // Genres and year are kept — the backend supports Q + Genres + Year
+    // simultaneously via GET /api/animes/search.
 
     // Debounce para sugestões (6C) — 300ms
     _suggestionDebounce?.cancel();
@@ -166,23 +159,17 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   void _submitSearch(String value) {
     final query = value.trim();
-    ref.read(selectedGenresProvider.notifier).clear();
-    ref.read(selectedYearProvider.notifier).clear();
+    // Genres and year are preserved — combined search.
     ref.read(searchQueryProvider.notifier).set(query);
     _removeOverlay();
   }
 
   /// Toggle de gênero para seleção múltipla.
-  /// Se há texto digitado, limpa o texto e começa filtro por gênero.
+  /// Text + genre can coexist (backend supports combined search).
   void _toggleGenre(String genre) {
-    // Se tinha texto, limpa-o para entrar no modo filtro.
-    if (_controller.text.trim().isNotEmpty) {
-      _controller.clear();
-      ref.read(searchQueryProvider.notifier).set('');
-      ref.read(suggestionQueryProvider.notifier).set('');
-    }
-    // Regra: ao selecionar gênero sem texto, limpa o filtro de ano.
-    final query = ref.read(searchQueryProvider).trim();
+    // If there is text, the search provider will combine text + genres.
+    // Only clear year when there is no text (filter-only mode switches axis).
+    final query = _controller.text.trim();
     if (query.isEmpty) {
       ref.read(selectedYearProvider.notifier).clear();
     }

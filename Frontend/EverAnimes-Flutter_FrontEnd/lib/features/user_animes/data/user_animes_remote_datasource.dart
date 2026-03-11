@@ -50,8 +50,8 @@ class UserAnimesRemoteDatasource {
       queryParameters: <String, dynamic>{
         'page': page,
         'pageSize': pageSize,
-        if (status != null) 'status': status,
-        if (year != null) 'year': year,
+        'status': ?status,
+        'year': ?year,
       },
     );
     return UserAnimePagedResponseDto.fromJson(response.data!);

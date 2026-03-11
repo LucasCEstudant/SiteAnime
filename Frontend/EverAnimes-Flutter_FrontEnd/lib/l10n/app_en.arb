@@ -140,8 +140,8 @@
   "adminManageUsersDesc": "Create, edit and remove users",
   "adminManageAnimes": "Manage Anime",
   "adminManageAnimesDesc": "Local anime CRUD",
-  "adminApiTest": "API Test",
-  "adminApiTestDesc": "Diagnostics and endpoint tests",
+  "adminApiTest": "API Explorer",
+  "adminApiTestDesc": "Browse and test API endpoints",
   "adminNavigation": "Navigation",
   "adminHomePage": "Home Page",
   "adminMyProfile": "My Profile",
@@ -190,9 +190,16 @@
   "adminUsersDeleteRole": "Role: {role}",
   "adminUsersDeleteWarning": "This action cannot be undone.",
 
-  "apiTestTitle": "API Test",
+  "apiTestTitle": "API Explorer",
   "apiTestUnexpectedError": "Unexpected error: {error}",
-  "apiTestRepeat": "Repeat tests",
+  "apiTestRepeat": "Refresh",
+  "apiExplorerNoEndpoints": "No endpoints found",
+  "apiExplorerTryIt": "Try it",
+  "apiExplorerSend": "Send",
+  "apiExplorerResponse": "Response",
+  "apiExplorerParams": "Parameters",
+  "apiExplorerRequired": "required",
+  "apiExplorerBody": "Request Body",
 
   "accessDeniedTitle": "Access Denied",
   "accessDeniedMessage": "You do not have permission to access this page.\nThis area is restricted to administrators.",
@@ -229,5 +236,31 @@
   "myListStatusCompleted": "Completed",
   "myListStatusPlanToWatch": "Plan to Watch",
   "myListStatusDropped": "Dropped",
-  "myListStatusOnHold": "On Hold"
+  "myListStatusOnHold": "On Hold",
+
+  "myListEditorMode": "Editor mode",
+  "myListExitEditor": "Exit editor",
+  "myListSortAZ": "A → Z",
+  "myListSortZA": "Z → A",
+  "myListSortYearDesc": "Year ↓",
+  "myListSortYearAsc": "Year ↑",
+  "myListSortDateAdded": "Recently added",
+  "myListSortDateUpdated": "Recently updated",
+  "myListSelectAll": "Select all",
+  "myListDeselectAll": "Deselect",
+  "myListSelectedCount": "{count} selected",
+  "@myListSelectedCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "myListChangeStatus": "Change status",
+  "myListItemsUpdated": "{count} items updated",
+  "@myListItemsUpdated": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "myListUpdated": "Updated successfully",
+  "myListScore": "Score (0–10)",
+  "myListEpisodesWatched": "Episodes watched",
+  "myListNotes": "Notes",
+  "apiExplorerEndpointCount": "{count} endpoints",
+  "@apiExplorerEndpointCount": { "placeholders": { "count": { "type": "int" } } }
 }

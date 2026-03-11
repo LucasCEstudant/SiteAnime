@@ -140,8 +140,8 @@
   "adminManageUsersDesc": "创建、编辑和删除用户",
   "adminManageAnimes": "管理动漫",
   "adminManageAnimesDesc": "本地动漫增删改查",
-  "adminApiTest": "API测试",
-  "adminApiTestDesc": "诊断与端点测试",
+  "adminApiTest": "API 浏览器",
+  "adminApiTestDesc": "浏览和测试API端点",
   "adminNavigation": "导航",
   "adminHomePage": "首页",
   "adminMyProfile": "我的资料",
@@ -190,9 +190,16 @@
   "adminUsersDeleteRole": "角色：{role}",
   "adminUsersDeleteWarning": "此操作无法撤销。",
 
-  "apiTestTitle": "API测试",
+  "apiTestTitle": "API 浏览器",
   "apiTestUnexpectedError": "意外错误：{error}",
-  "apiTestRepeat": "重新测试",
+  "apiTestRepeat": "刷新",
+  "apiExplorerNoEndpoints": "未找到端点",
+  "apiExplorerTryIt": "测试",
+  "apiExplorerSend": "发送",
+  "apiExplorerResponse": "响应",
+  "apiExplorerParams": "参数",
+  "apiExplorerRequired": "必填",
+  "apiExplorerBody": "请求体",
 
   "accessDeniedTitle": "访问被拒绝",
   "accessDeniedMessage": "您没有权限访问此页面。\n此区域仅限管理员访问。",
@@ -229,5 +236,31 @@
   "myListStatusCompleted": "已完成",
   "myListStatusPlanToWatch": "计划观看",
   "myListStatusDropped": "已弃坑",
-  "myListStatusOnHold": "暂停"
+  "myListStatusOnHold": "暂停",
+
+  "myListEditorMode": "编辑模式",
+  "myListExitEditor": "退出编辑",
+  "myListSortAZ": "A → Z",
+  "myListSortZA": "Z → A",
+  "myListSortYearDesc": "年份 ↓",
+  "myListSortYearAsc": "年份 ↑",
+  "myListSortDateAdded": "最近添加",
+  "myListSortDateUpdated": "最近更新",
+  "myListSelectAll": "全选",
+  "myListDeselectAll": "取消选择",
+  "myListSelectedCount": "已选 {count} 项",
+  "@myListSelectedCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "myListChangeStatus": "更改状态",
+  "myListItemsUpdated": "已更新 {count} 项",
+  "@myListItemsUpdated": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "myListUpdated": "更新成功",
+  "myListScore": "评分 (0–10)",
+  "myListEpisodesWatched": "已看集数",
+  "myListNotes": "备注",
+  "apiExplorerEndpointCount": "{count} 个端点",
+  "@apiExplorerEndpointCount": { "placeholders": { "count": { "type": "int" } } }
 }

@@ -1,7 +1,9 @@
 // Helper para resolver URLs de embed de vídeo de diferentes provedores.
 //
-// Suporta: Wistia, YouTube, Dailymotion.
+// Suporta: Wistia, YouTube, Dailymotion, Google Drive.
 // Para provedores não-embedáveis (Crunchyroll, Netflix, etc.) retorna `null`.
+
+import '../../../core/utils/image_proxy_url.dart';
 
 /// Resultado da resolução de embed.
 class EmbedResult {
@@ -45,6 +47,15 @@ EmbedResult? resolveEmbedUrl(String url) {
     return EmbedResult(
       embedUrl: 'https://www.dailymotion.com/embed/video/$dailymotionId',
       provider: 'Dailymotion',
+    );
+  }
+
+  // --- Google Drive ---
+  final gdriveId = _extractGoogleDriveId(url);
+  if (gdriveId != null) {
+    return EmbedResult(
+      embedUrl: 'https://drive.google.com/file/d/$gdriveId/preview',
+      provider: 'Google Drive',
     );
   }
 
@@ -147,4 +158,64 @@ String? _extractDailymotionId(String url) {
   } catch (_) {
     return null;
   }
+}
+
+/// Google Drive — formatos suportados:
+/// - `https://drive.google.com/file/d/{id}/view`
+/// - `https://drive.google.com/file/d/{id}/preview`
+/// - `https://drive.google.com/open?id={id}`
+String? _extractGoogleDriveId(String url) {
+  try {
+    final uri = Uri.parse(url);
+    final host = uri.host.replaceAll('www.', '');
+    if (host != 'drive.google.com') return null;
+
+    // /file/d/{id}/...
+    final segments = uri.pathSegments;
+    if (segments.length >= 3 && segments[0] == 'file' && segments[1] == 'd') {
+      return segments[2];
+    }
+
+    // /open?id={id}
+    if (uri.queryParameters.containsKey('id')) {
+      return uri.queryParameters['id'];
+    }
+
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Episode thumbnail resolver
+// ---------------------------------------------------------------------------
+
+/// Attempts to resolve a provider-specific thumbnail URL for the given
+/// episode [url]. Falls back to [fallbackCoverUrl] (typically the anime cover)
+/// when the provider is unknown or does not expose thumbnails.
+///
+/// The returned URL is proxied through `/api/image-proxy` to avoid CORS.
+String? resolveEpisodeThumbnail(String url, {String? fallbackCoverUrl}) {
+  // YouTube → https://img.youtube.com/vi/{id}/mqdefault.jpg
+  final ytId = _extractYouTubeId(url);
+  if (ytId != null) {
+    return proxyImageUrl('https://img.youtube.com/vi/$ytId/mqdefault.jpg');
+  }
+
+  // Dailymotion → https://www.dailymotion.com/thumbnail/video/{id}
+  final dmId = _extractDailymotionId(url);
+  if (dmId != null) {
+    return proxyImageUrl('https://www.dailymotion.com/thumbnail/video/$dmId');
+  }
+
+  // Wistia — no simple public thumbnail endpoint; use fallback.
+  // Google Drive — no thumbnail endpoint; use fallback.
+
+  // Fallback: anime cover
+  if (fallbackCoverUrl != null && fallbackCoverUrl.isNotEmpty) {
+    return proxyImageUrl(fallbackCoverUrl);
+  }
+
+  return null;
 }

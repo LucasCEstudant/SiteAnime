@@ -25,6 +25,8 @@ class UpscalableHeroImage extends ConsumerStatefulWidget {
     this.alignment = Alignment.center,
     this.semanticLabel,
     this.errorBuilder,
+    this.cacheWidth,
+    this.cacheHeight,
   });
 
   final String imageUrl;
@@ -34,6 +36,8 @@ class UpscalableHeroImage extends ConsumerStatefulWidget {
   final Alignment alignment;
   final String? semanticLabel;
   final ImageErrorWidgetBuilder? errorBuilder;
+  final int? cacheWidth;
+  final int? cacheHeight;
 
   @override
   ConsumerState<UpscalableHeroImage> createState() =>
@@ -68,6 +72,10 @@ class _UpscalableHeroImageState extends ConsumerState<UpscalableHeroImage> {
 
     final isAuth = ref.read(authStateProvider).isAuthenticated;
     if (!isAuth) return;
+
+    // Skip upscale on narrow viewports (mobile) to save bandwidth/memory.
+    final mq = MediaQuery.maybeOf(context);
+    if (mq != null && mq.size.width < 600) return;
 
     final service = ref.read(imageUpscaleServiceProvider);
 
@@ -104,6 +112,8 @@ class _UpscalableHeroImageState extends ConsumerState<UpscalableHeroImage> {
             height: widget.height,
             alignment: widget.alignment,
             semanticLabel: widget.semanticLabel,
+            cacheWidth: widget.cacheWidth,
+            cacheHeight: widget.cacheHeight,
             errorBuilder: widget.errorBuilder,
           ),
           // Subtle loading badge fades out when done.
@@ -123,6 +133,8 @@ class _UpscalableHeroImageState extends ConsumerState<UpscalableHeroImage> {
           alignment: widget.alignment,
           semanticLabel: widget.semanticLabel,
           errorBuilder: widget.errorBuilder,
+          cacheWidth: widget.cacheWidth,
+          cacheHeight: widget.cacheHeight,
         ),
         if (_loading)
           Positioned(

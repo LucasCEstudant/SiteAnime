@@ -34,6 +34,11 @@ using System.Text;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Allow DateTime with Kind != Utc to be sent to PostgreSQL timestamptz columns
+// (safe for migration from SQL Server where Kind is often Unspecified)
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
 
 builder.Services.AddCors(options =>
@@ -254,7 +259,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 });
 
 builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
