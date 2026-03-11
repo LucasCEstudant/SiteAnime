@@ -734,20 +734,16 @@ class _EpisodesTab extends StatelessWidget {
       children: List.generate(eps.length, (i) {
         final ep = eps[i];
         final canEmbed = resolveEmbedUrl(ep.url) != null;
+        final thumbUrl = resolveEpisodeThumbnail(
+          ep.url,
+          fallbackCoverUrl: details.coverUrl,
+        );
 
-        return ActionChip(
-          avatar: Icon(
-            canEmbed ? Icons.play_circle_outline : Icons.open_in_new,
-            size: 16,
-            color: AppColors.textSecondary,
-          ),
-          label: Text(
-            ep.title,
-            style: AppTextStyles.meta,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          onPressed: () {
+        return _EpisodeThumbnailCard(
+          title: ep.title,
+          thumbnailUrl: thumbUrl,
+          canEmbed: canEmbed,
+          onTap: () {
             if (canEmbed) {
               final extId =
                   details.externalId ?? details.id?.toString() ?? '';
@@ -758,13 +754,146 @@ class _EpisodesTab extends StatelessWidget {
               _openUrl(ep.url);
             }
           },
-          backgroundColor: AppColors.surface,
-          side: BorderSide(
-            color: AppColors.surfaceVariant,
-            width: 0.8,
-          ),
         );
       }),
+    );
+  }
+}
+
+/// Thumbnail card for a single episode — shows a 16:9 thumbnail image
+/// with a semi-transparent overlay containing a play icon and the episode title.
+class _EpisodeThumbnailCard extends StatefulWidget {
+  const _EpisodeThumbnailCard({
+    required this.title,
+    required this.thumbnailUrl,
+    required this.canEmbed,
+    required this.onTap,
+  });
+
+  final String title;
+  final String? thumbnailUrl;
+  final bool canEmbed;
+  final VoidCallback onTap;
+
+  @override
+  State<_EpisodeThumbnailCard> createState() => _EpisodeThumbnailCardState();
+}
+
+class _EpisodeThumbnailCardState extends State<_EpisodeThumbnailCard> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    const cardWidth = 220.0;
+    const cardHeight = cardWidth * 9 / 16; // 16:9 aspect ratio
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: _hovered ? 1.05 : 1.0,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          child: Container(
+            width: cardWidth,
+            height: cardHeight,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              color: AppColors.surface,
+              border: Border.all(
+                color: _hovered
+                    ? AppColors.accent.withValues(alpha: 0.6)
+                    : AppColors.surfaceVariant,
+                width: _hovered ? 1.5 : 0.8,
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Thumbnail image
+                if (widget.thumbnailUrl != null)
+                  ProxiedImage(
+                    src: widget.thumbnailUrl!,
+                    fit: BoxFit.cover,
+                    width: cardWidth,
+                    height: cardHeight,
+                    errorBuilder: (_, e, s) => const ColoredBox(
+                      color: AppColors.surface,
+                      child: Center(
+                        child: Icon(Icons.movie, color: AppColors.textSecondary,
+                            size: 32),
+                      ),
+                    ),
+                  )
+                else
+                  const ColoredBox(
+                    color: AppColors.surface,
+                    child: Center(
+                      child: Icon(Icons.movie, color: AppColors.textSecondary,
+                          size: 32),
+                    ),
+                  ),
+
+                // Gradient overlay for text readability
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: [0.4, 1.0],
+                      colors: [
+                        Color(0x00000000),
+                        Color(0xCC000000),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Play icon
+                Center(
+                  child: AnimatedOpacity(
+                    opacity: _hovered ? 1.0 : 0.7,
+                    duration: const Duration(milliseconds: 180),
+                    child: Icon(
+                      widget.canEmbed
+                          ? Icons.play_circle_fill
+                          : Icons.open_in_new,
+                      color: Colors.white,
+                      size: 36,
+                    ),
+                  ),
+                ),
+
+                // Title at bottom
+                Positioned(
+                  left: AppSpacing.sm,
+                  right: AppSpacing.sm,
+                  bottom: AppSpacing.xs,
+                  child: Text(
+                    widget.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          blurRadius: 4,
+                          color: Colors.black,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
