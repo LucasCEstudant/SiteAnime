@@ -29,7 +29,7 @@ class SearchRemoteDatasource {
         'q': query,
         'limit': limit,
         'Cursor': ?cursor,
-        if (year != null) 'year': year,
+        'year': ?year,
         if (genres != null && genres.isNotEmpty) 'Genres': genres,
       },
     );

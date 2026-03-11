@@ -289,7 +289,7 @@ class _BannerSlotCardState extends ConsumerState<_BannerSlotCard> {
         current: widget.banner,
       ),
     );
-    if (result == null || !mounted) return;
+    if (result == null || !context.mounted) return;
 
     // Salvar no backend
     try {
@@ -297,7 +297,7 @@ class _BannerSlotCardState extends ConsumerState<_BannerSlotCard> {
           ref.read(apiClientProvider));
       await datasource.update(widget.slot, result);
 
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Banner atualizado com sucesso!'),
@@ -307,7 +307,7 @@ class _BannerSlotCardState extends ConsumerState<_BannerSlotCard> {
         bustBannerCache(ref);
       }
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao salvar: $e'),

@@ -101,7 +101,7 @@ class _FeaturedExpandedSectionState
 
     return asyncAnimes.when(
       loading: () => const FeaturedSectionSkeleton(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
       data: (animes) {
         if (animes.isEmpty) return const SizedBox.shrink();
         return _buildCarousel(animes);

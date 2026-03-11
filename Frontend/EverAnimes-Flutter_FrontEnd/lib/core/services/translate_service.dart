@@ -80,7 +80,7 @@ class TranslateService {
         data: {
           'text': text,
           'targetLang': targetLang,
-          if (sourceLang != null) 'sourceLang': sourceLang,
+          'sourceLang': ?sourceLang,
           'format': format,
         },
       );

@@ -27,6 +27,34 @@ const _kStatusOptions = <String?>[
   'dropped',
 ];
 
+/// Localizes a backend status string using the current l10n.
+String _localizeStatus(String status, AppLocalizations l10n) {
+  switch (status) {
+    case 'watching':
+      return l10n.myListStatusWatching;
+    case 'completed':
+      return l10n.myListStatusCompleted;
+    case 'plan-to-watch':
+      return l10n.myListStatusPlanToWatch;
+    case 'dropped':
+      return l10n.myListStatusDropped;
+    default:
+      return status;
+  }
+}
+
+/// Consistent dark-themed input decoration used across dialogs.
+InputDecoration _darkInputDecoration(String label) => InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: AppColors.textSecondary),
+      enabledBorder: OutlineInputBorder(
+        borderSide: BorderSide(color: AppColors.textSecondary.withAlpha(80)),
+      ),
+      focusedBorder: const OutlineInputBorder(
+        borderSide: BorderSide(color: AppColors.accent),
+      ),
+    );
+
 /// Sort options for client-side ordering.
 enum _SortMode { nameAsc, nameDesc, yearDesc, yearAsc, dateAddedDesc, dateUpdatedDesc }
 
@@ -580,20 +608,6 @@ class _StatusFilterDropdown extends StatelessWidget {
     );
   }
 
-  static String _localizeStatus(String status, AppLocalizations l10n) {
-    switch (status) {
-      case 'watching':
-        return l10n.myListStatusWatching;
-      case 'completed':
-        return l10n.myListStatusCompleted;
-      case 'plan-to-watch':
-        return l10n.myListStatusPlanToWatch;
-      case 'dropped':
-        return l10n.myListStatusDropped;
-      default:
-        return status;
-    }
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -842,20 +856,6 @@ class _MyListCardState extends State<_MyListCard> {
     }
   }
 
-  static String _localizeStatus(String status, AppLocalizations l10n) {
-    switch (status) {
-      case 'watching':
-        return l10n.myListStatusWatching;
-      case 'completed':
-        return l10n.myListStatusCompleted;
-      case 'plan-to-watch':
-        return l10n.myListStatusPlanToWatch;
-      case 'dropped':
-        return l10n.myListStatusDropped;
-      default:
-        return status;
-    }
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1119,16 +1119,7 @@ class _QuickEditDialogState extends State<_QuickEditDialog> {
             DropdownButtonFormField<String>(
               initialValue: _status,
               dropdownColor: AppColors.surface,
-              decoration: InputDecoration(
-                labelText: l10n.status,
-                labelStyle: const TextStyle(color: AppColors.textSecondary),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.textSecondary.withAlpha(80)),
-                ),
-                focusedBorder: const OutlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.accent),
-                ),
-              ),
+              decoration: _darkInputDecoration(l10n.status),
               style: const TextStyle(color: AppColors.textPrimary),
               items: [
                 DropdownMenuItem(value: 'watching', child: Text(l10n.myListStatusWatching)),
@@ -1146,16 +1137,7 @@ class _QuickEditDialogState extends State<_QuickEditDialog> {
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(color: AppColors.textPrimary),
-              decoration: InputDecoration(
-                labelText: l10n.myListScore,
-                labelStyle: const TextStyle(color: AppColors.textSecondary),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.textSecondary.withAlpha(80)),
-                ),
-                focusedBorder: const OutlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.accent),
-                ),
-              ),
+              decoration: _darkInputDecoration(l10n.myListScore),
             ),
             const SizedBox(height: AppSpacing.sm),
 
@@ -1164,16 +1146,7 @@ class _QuickEditDialogState extends State<_QuickEditDialog> {
               controller: _episodesCtrl,
               keyboardType: TextInputType.number,
               style: const TextStyle(color: AppColors.textPrimary),
-              decoration: InputDecoration(
-                labelText: l10n.myListEpisodesWatched,
-                labelStyle: const TextStyle(color: AppColors.textSecondary),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.textSecondary.withAlpha(80)),
-                ),
-                focusedBorder: const OutlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.accent),
-                ),
-              ),
+              decoration: _darkInputDecoration(l10n.myListEpisodesWatched),
             ),
             const SizedBox(height: AppSpacing.sm),
 
@@ -1182,16 +1155,7 @@ class _QuickEditDialogState extends State<_QuickEditDialog> {
               controller: _notesCtrl,
               maxLines: 3,
               style: const TextStyle(color: AppColors.textPrimary),
-              decoration: InputDecoration(
-                labelText: l10n.myListNotes,
-                labelStyle: const TextStyle(color: AppColors.textSecondary),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.textSecondary.withAlpha(80)),
-                ),
-                focusedBorder: const OutlineInputBorder(
-                  borderSide: BorderSide(color: AppColors.accent),
-                ),
-              ),
+              decoration: _darkInputDecoration(l10n.myListNotes),
             ),
           ],
         ),

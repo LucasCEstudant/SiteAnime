@@ -49,7 +49,7 @@ class HeroBanner extends ConsumerWidget {
         width: double.infinity,
         child: asyncAnime.when(
           loading: () => const HeroBannerSkeleton(),
-          error: (_, __) => const HeroBannerSkeleton(),
+          error: (_, _) => const HeroBannerSkeleton(),
           data: (anime) {
             if (anime == null) return const HeroBannerSkeleton();
             return _HeroContent(anime: anime, heroHeight: heroHeight);
