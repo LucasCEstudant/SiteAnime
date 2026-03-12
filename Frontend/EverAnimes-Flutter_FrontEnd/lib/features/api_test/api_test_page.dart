@@ -28,6 +28,7 @@ class _SwaggerEndpoint {
     this.bodyExample,
     this.responses = const {},
     this.produces = const [],
+    this.responseHasBinaryFormat = false,
   });
 
   final String method; // GET, POST, PUT, DELETE ...
@@ -41,10 +42,13 @@ class _SwaggerEndpoint {
   final Map<String, dynamic>? bodyExample;       // pre-built example object
   final Map<String, String> responses;           // statusCode → description
   final List<String> produces;                   // response content-types (2xx)
+  final bool responseHasBinaryFormat;            // schema has format:binary
 
   /// Whether the 2xx response is expected to be binary (image/* etc.).
-  bool get isBinaryResponse => produces
-      .any((ct) => ct.startsWith('image/') || ct == 'application/octet-stream');
+  bool get isBinaryResponse =>
+      produces.any((ct) =>
+          ct.startsWith('image/') || ct == 'application/octet-stream') ||
+      responseHasBinaryFormat;
 }
 
 class _SwaggerParam {
@@ -218,12 +222,24 @@ final _swaggerProvider =
           op['responses'] as Map<String, dynamic>? ?? {};
       final responses = <String, String>{};
       final produces = <String>[];
+      var hasBinaryFormat = false;
       for (final rEntry in rawResponses.entries) {
         final rv = rEntry.value as Map<String, dynamic>;
         responses[rEntry.key] = rv['description'] as String? ?? '';
         if (rEntry.key.startsWith('2')) {
           final ct = rv['content'] as Map<String, dynamic>?;
-          if (ct != null) produces.addAll(ct.keys);
+          if (ct != null) {
+            produces.addAll(ct.keys);
+            // Check if any response schema declares format: "binary"
+            for (final mediaEntry in ct.values) {
+              if (mediaEntry is Map<String, dynamic>) {
+                final schema = mediaEntry['schema'] as Map<String, dynamic>?;
+                if (schema != null && schema['format'] == 'binary') {
+                  hasBinaryFormat = true;
+                }
+              }
+            }
+          }
         }
       }
 
@@ -239,6 +255,7 @@ final _swaggerProvider =
         bodyExample: bodyExample,
         responses: responses,
         produces: produces,
+        responseHasBinaryFormat: hasBinaryFormat,
       ));
     }
   }
