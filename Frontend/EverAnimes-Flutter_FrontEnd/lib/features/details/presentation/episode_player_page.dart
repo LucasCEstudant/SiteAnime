@@ -501,6 +501,7 @@ class _EpisodeSidebar extends StatelessWidget {
           Expanded(
             child: ListView.builder(
               padding: EdgeInsets.zero,
+              addAutomaticKeepAlives: false,
               itemCount: episodes.length,
               itemBuilder: (ctx, i) => _EpisodeListTile(
                 episode: episodes[i],

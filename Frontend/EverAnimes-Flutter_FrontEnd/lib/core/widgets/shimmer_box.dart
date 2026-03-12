@@ -44,23 +44,27 @@ class _ShimmerBoxState extends State<ShimmerBox>
     final highlightColor =
         theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3);
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(widget.borderRadius),
-            gradient: LinearGradient(
-              begin: Alignment(-1.0 + 2.0 * _controller.value, 0),
-              end: Alignment(-1.0 + 2.0 * _controller.value + 1, 0),
-              colors: [baseColor, highlightColor, baseColor],
-              stops: const [0.0, 0.5, 1.0],
+    // RepaintBoundary prevents the shimmer animation (rebuilds every frame)
+    // from cascading dirty-paint flags up to parent widgets.
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Container(
+            width: widget.width,
+            height: widget.height,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(widget.borderRadius),
+              gradient: LinearGradient(
+                begin: Alignment(-1.0 + 2.0 * _controller.value, 0),
+                end: Alignment(-1.0 + 2.0 * _controller.value + 1, 0),
+                colors: [baseColor, highlightColor, baseColor],
+                stops: const [0.0, 0.5, 1.0],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

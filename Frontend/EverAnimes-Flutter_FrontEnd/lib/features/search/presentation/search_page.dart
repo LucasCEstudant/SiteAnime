@@ -440,6 +440,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     return GridView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(16),
+      addAutomaticKeepAlives: false,
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 180,
         childAspectRatio: 0.65,

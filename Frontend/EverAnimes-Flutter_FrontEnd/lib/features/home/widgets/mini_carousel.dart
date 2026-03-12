@@ -261,8 +261,11 @@ class _MiniCarouselStripState extends State<_MiniCarouselStrip> {
                                   child: Transform.scale(
                                     scale: e.scale,
                                     alignment: Alignment.center,
-                                    child: Opacity(
-                                      opacity: e.opacity,
+                                    // FadeTransition with AlwaysStoppedAnimation uses
+                                    // OpacityLayer (cheap GPU blend) instead of Opacity's
+                                    // saveLayer (expensive offscreen buffer).
+                                    child: FadeTransition(
+                                      opacity: AlwaysStoppedAnimation(e.opacity),
                                       child: MiniPosterCard(
                                           anime: widget.items[e.index],
                                           cardSize: cardSz,

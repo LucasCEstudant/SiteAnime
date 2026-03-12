@@ -230,7 +230,7 @@ class _HeroDarkOverlay extends StatelessWidget {
             ],
           ),
         ),
-        child: Container(),
+        child: const SizedBox.expand(),
       ),
     );
   }

@@ -303,9 +303,16 @@ class _FeaturedBackgroundImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Limit decode resolution to device logical pixels × DPR.
+    // Prevents oversized decodes that waste GPU memory on weak devices.
+    final mq = MediaQuery.of(context);
+    final dpr = mq.devicePixelRatio.clamp(1.0, 3.0);
+    final decodeWidth = (mq.size.width * dpr).toInt();
+
     return UpscalableHeroImage(
       imageUrl: coverUrl,
       fit: BoxFit.cover,
+      cacheWidth: decodeWidth,
       errorBuilder: (ctx, err, st) =>
           const ColoredBox(color: AppColors.bgDeep),
     );
