@@ -360,9 +360,10 @@ builder.Services.AddHttpClient("ImageProxy", c =>
 });
 
 // HttpClient para o microserviço Real-ESRGAN (upscale)
-builder.Services.AddHttpClient("UpscaleService", c =>
+builder.Services.AddHttpClient("UpscaleService", (sp, c) =>
 {
-    c.Timeout = TimeSpan.FromSeconds(180);
+    var opts = sp.GetRequiredService<IOptions<ImageUpscaleOptions>>().Value;
+    c.Timeout = TimeSpan.FromSeconds(Math.Max(5, opts.TimeoutSeconds) + 30);
 });
 
 // LibreTranslate (typed client)

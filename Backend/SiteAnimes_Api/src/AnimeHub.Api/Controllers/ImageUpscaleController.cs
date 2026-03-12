@@ -19,6 +19,7 @@ public sealed class ImageUpscaleController : ControllerBase
     [HttpPost("upscale")]
     [Authorize]
     [EnableRateLimiting("image-upscale")]
+    [Produces("image/png")]
     [SwaggerOperation(
         Summary = "Faz upscale 4× de uma imagem usando Real-ESRGAN",
         Description = "Aceita URL de imagem de CDN permitido. Retorna a imagem em PNG com resolução 4× maior."

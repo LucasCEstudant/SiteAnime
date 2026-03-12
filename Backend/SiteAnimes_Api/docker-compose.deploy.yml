@@ -84,6 +84,7 @@ services:
       - Translation__BaseUrl=http://libretranslate:5000
       - Translation__TimeoutSeconds=60
       - ImageUpscale__ServiceUrl=http://realesrgan:8000
+      - ImageUpscale__TimeoutSeconds=420
     ports:
       - "7118:80"
     restart: unless-stopped

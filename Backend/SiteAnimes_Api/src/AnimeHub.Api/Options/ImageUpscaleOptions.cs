@@ -9,8 +9,8 @@ public sealed class ImageUpscaleOptions
     [Range(1, 50)]
     public int MaxFileSizeMb { get; init; } = 10;
 
-    [Range(1, 300)]
-    public int TimeoutSeconds { get; init; } = 120;
+    [Range(1, 600)]
+    public int TimeoutSeconds { get; init; } = 420;
 
     [Required]
     public string ServiceUrl { get; init; } = "http://realesrgan:8000";

@@ -1,7 +1,14 @@
 ﻿FROM python:3.12-slim
 
+# Install Vulkan loader, Mesa software Vulkan (llvmpipe), and diagnostics.
+# mesa-vulkan-drivers provides a software Vulkan ICD (llvmpipe) which is
+# necessary on Docker Desktop / WSL2 where the NVIDIA Container Toolkit
+# does NOT inject a Vulkan ICD (only CUDA libs are injected).
+# If a real NVIDIA GPU Vulkan driver is injected at runtime (native Linux),
+# ncnn will prefer it automatically.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        wget unzip libvulkan1 libglib2.0-0 libgomp1 \
+        wget unzip libvulkan1 mesa-vulkan-drivers vulkan-tools \
+        libglib2.0-0 libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Use a locally-downloaded Real-ESRGAN ZIP (place file in this directory)
@@ -32,7 +39,7 @@ COPY app.py .
 
 ENV ESRGAN_BIN=/app/realesrgan/realesrgan-ncnn-vulkan
 ENV ESRGAN_MODELS=/app/realesrgan/models
-ENV ESRGAN_TIMEOUT=120
+ENV ESRGAN_TIMEOUT=420
 ENV UPSCALE_MODE=auto
 
 EXPOSE 8000
