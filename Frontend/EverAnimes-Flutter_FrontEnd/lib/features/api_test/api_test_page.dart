@@ -552,6 +552,7 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
   final Map<String, TextEditingController> _paramControllers = {};
   final _bodyController = TextEditingController();
   String? _responseBody;
+  Uint8List? _responseImageBytes;
   int? _responseStatus;
   bool _loading = false;
   String? _errorMsg;
@@ -580,6 +581,7 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
     setState(() {
       _loading = true;
       _responseBody = null;
+      _responseImageBytes = null;
       _responseStatus = null;
       _errorMsg = null;
     });
@@ -601,6 +603,9 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
         }
       }
 
+      // Request as bytes so we can detect image / binary responses.
+      final bytesOpt = Options(responseType: ResponseType.bytes);
+
       Response<dynamic> res;
       final bodyData =
           widget.endpoint.hasBody && _bodyController.text.isNotEmpty
@@ -609,27 +614,51 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
 
       switch (widget.endpoint.method) {
         case 'POST':
-          res = await client.post<dynamic>(resolvedPath,
-              data: bodyData, queryParameters: queryParams);
+          res = await client.post<List<int>>(resolvedPath,
+              data: bodyData,
+              queryParameters: queryParams,
+              options: bytesOpt);
         case 'PUT':
-          res = await client.put<dynamic>(resolvedPath,
-              data: bodyData, queryParameters: queryParams);
+          res = await client.put<List<int>>(resolvedPath,
+              data: bodyData,
+              queryParameters: queryParams,
+              options: bytesOpt);
         case 'DELETE':
-          res = await client.delete<dynamic>(resolvedPath,
-              queryParameters: queryParams);
+          res = await client.delete<List<int>>(resolvedPath,
+              queryParameters: queryParams, options: bytesOpt);
         default: // GET
-          res = await client.get<dynamic>(resolvedPath,
-              queryParameters: queryParams);
+          res = await client.get<List<int>>(resolvedPath,
+              queryParameters: queryParams, options: bytesOpt);
       }
 
-      final prettyBody = res.data != null
-          ? const JsonEncoder.withIndent('  ').convert(res.data)
-          : '';
+      // Check content-type to decide how to display the response.
+      final contentType =
+          res.headers.value('content-type')?.toLowerCase() ?? '';
+      final isImage = contentType.startsWith('image/');
 
-      setState(() {
-        _responseStatus = res.statusCode;
-        _responseBody = prettyBody;
-      });
+      if (isImage && res.data != null) {
+        final bytes = Uint8List.fromList(res.data as List<int>);
+        setState(() {
+          _responseStatus = res.statusCode;
+          _responseImageBytes = bytes;
+        });
+      } else {
+        // Decode bytes → UTF-8 string → pretty-print JSON.
+        String prettyBody = '';
+        if (res.data != null) {
+          final raw = utf8.decode(res.data as List<int>, allowMalformed: true);
+          try {
+            final parsed = jsonDecode(raw);
+            prettyBody = const JsonEncoder.withIndent('  ').convert(parsed);
+          } catch (_) {
+            prettyBody = raw;
+          }
+        }
+        setState(() {
+          _responseStatus = res.statusCode;
+          _responseBody = prettyBody;
+        });
+      }
     } on ApiException catch (e) {
       setState(() {
         _errorMsg = e.message;
@@ -803,7 +832,9 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
                       ),
 
                       // Response
-                      if (_responseBody != null || _errorMsg != null) ...[
+                      if (_responseBody != null ||
+                          _responseImageBytes != null ||
+                          _errorMsg != null) ...[
                         const SizedBox(height: 16),
                         Row(
                           children: [
@@ -849,29 +880,51 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Container(
-                          width: double.infinity,
-                          constraints:
-                              const BoxConstraints(maxHeight: 200),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius:
-                                BorderRadius.circular(AppRadius.card),
-                          ),
-                          child: SingleChildScrollView(
-                            child: SelectableText(
-                              _errorMsg ?? _responseBody ?? '',
-                              style: TextStyle(
-                                color: _errorMsg != null
-                                    ? AppColors.accent
-                                    : AppColors.textPrimary,
-                                fontSize: 11,
-                                fontFamily: 'monospace',
+                        // Image response — render visually
+                        if (_responseImageBytes != null)
+                          Container(
+                            width: double.infinity,
+                            constraints:
+                                const BoxConstraints(maxHeight: 400),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.card),
+                            ),
+                            child: ClipRRect(
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.card),
+                              child: Image.memory(
+                                _responseImageBytes!,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          )
+                        // Text / JSON response
+                        else
+                          Container(
+                            width: double.infinity,
+                            constraints:
+                                const BoxConstraints(maxHeight: 200),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.card),
+                            ),
+                            child: SingleChildScrollView(
+                              child: SelectableText(
+                                _errorMsg ?? _responseBody ?? '',
+                                style: TextStyle(
+                                  color: _errorMsg != null
+                                      ? AppColors.accent
+                                      : AppColors.textPrimary,
+                                  fontSize: 11,
+                                  fontFamily: 'monospace',
+                                ),
                               ),
                             ),
                           ),
-                        ),
                       ],
                     ],
                   ),

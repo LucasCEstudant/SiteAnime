@@ -1,5 +1,6 @@
 ﻿import os
 import uuid
+import asyncio
 import subprocess
 import logging
 from pathlib import Path
@@ -14,7 +15,7 @@ logger = logging.getLogger("realesrgan-service")
 
 ESRGAN_BIN = os.getenv("ESRGAN_BIN", "/app/realesrgan/realesrgan-ncnn-vulkan")
 ESRGAN_MODELS = os.getenv("ESRGAN_MODELS", "/app/realesrgan/models")
-TIMEOUT_SECONDS = int(os.getenv("ESRGAN_TIMEOUT", "120"))
+TIMEOUT_SECONDS = int(os.getenv("ESRGAN_TIMEOUT", "420"))
 UPSCALE_MODE = os.getenv("UPSCALE_MODE", "auto")  # auto | gpu | cpu
 TMP_DIR = Path("/tmp/esrgan")
 TMP_DIR.mkdir(parents=True, exist_ok=True)
@@ -119,9 +120,9 @@ async def upscale(
                 job_id, _active_backend, scale, len(data))
 
     if _active_backend == "gpu":
-        result_bytes = _upscale_gpu(data, scale, job_id)
+        result_bytes = await asyncio.to_thread(_upscale_gpu, data, scale, job_id)
     else:
-        result_bytes = _upscale_cpu(data, scale, job_id)
+        result_bytes = await asyncio.to_thread(_upscale_cpu, data, scale, job_id)
 
     logger.info("Upscale complete job=%s output_size=%d", job_id, len(result_bytes))
 

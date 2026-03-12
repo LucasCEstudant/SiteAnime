@@ -121,11 +121,13 @@ class ApiClient {
   Future<Response<T>> get<T>(
     String path, {
     Map<String, dynamic>? queryParameters,
+    Options? options,
   }) async {
     try {
       return await _dio.get<T>(
         path,
         queryParameters: queryParameters,
+        options: options,
       );
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
@@ -137,12 +139,14 @@ class ApiClient {
     String path, {
     Object? data,
     Map<String, dynamic>? queryParameters,
+    Options? options,
   }) async {
     try {
       return await _dio.post<T>(
         path,
         data: data,
         queryParameters: queryParameters,
+        options: options,
       );
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
@@ -154,12 +158,14 @@ class ApiClient {
     String path, {
     Object? data,
     Map<String, dynamic>? queryParameters,
+    Options? options,
   }) async {
     try {
       return await _dio.put<T>(
         path,
         data: data,
         queryParameters: queryParameters,
+        options: options,
       );
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
@@ -170,11 +176,13 @@ class ApiClient {
   Future<Response<T>> delete<T>(
     String path, {
     Map<String, dynamic>? queryParameters,
+    Options? options,
   }) async {
     try {
       return await _dio.delete<T>(
         path,
         queryParameters: queryParameters,
+        options: options,
       );
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
