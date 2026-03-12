@@ -45,6 +45,9 @@ services:
     depends_on:
       libretranslate-init:
         condition: service_completed_successfully
+    command: ["--load-only", "pt,en,es,zh"]
+    environment:
+      - LT_LOAD_ONLY=pt,en,es,zh
     ports:
       - "5000:5000"
     restart: unless-stopped
