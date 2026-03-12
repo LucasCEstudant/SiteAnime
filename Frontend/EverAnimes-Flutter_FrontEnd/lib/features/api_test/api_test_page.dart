@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../features/auth/data/token_storage.dart';
 import '../../l10n/app_localizations.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -780,31 +781,60 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
       }
 
       // Use ResponseType.bytes when the endpoint declares an image response.
-      // Override Accept header so the server returns raw bytes, not JSON-wrapped.
+      // On web, Dio's per-request Options(responseType: bytes) may not
+      // correctly set xhr.responseType='arraybuffer', causing binary data
+      // to be UTF-8-decoded as a String and corrupting high bytes.
+      // Fix: create a dedicated Dio instance with ResponseType.bytes baked
+      // into BaseOptions so the web adapter sees it during XHR setup.
       final useBinary = widget.endpoint.isBinaryResponse;
-      final options = useBinary
-          ? Options(
-              responseType: ResponseType.bytes,
-              sendTimeout: const Duration(seconds: 60),
-              receiveTimeout: const Duration(seconds: 480),
-              headers: {'Accept': '*/*'},
-            )
-          : null;
 
       Response<dynamic> res;
-      switch (widget.endpoint.method) {
-        case 'POST':
-          res = await client.post<dynamic>(resolvedPath,
-              data: bodyData, queryParameters: queryParams, options: options);
-        case 'PUT':
-          res = await client.put<dynamic>(resolvedPath,
-              data: bodyData, queryParameters: queryParams, options: options);
-        case 'DELETE':
-          res = await client.delete<dynamic>(resolvedPath,
-              queryParameters: queryParams, options: options);
-        default:
-          res = await client.get<dynamic>(resolvedPath,
-              queryParameters: queryParams, options: options);
+      if (useBinary) {
+        // Build a fresh Dio with ResponseType.bytes in BaseOptions.
+        final binaryDio = Dio(BaseOptions(
+          baseUrl: kApiBaseUrl,
+          responseType: ResponseType.bytes,
+          connectTimeout: const Duration(seconds: 30),
+          sendTimeout: const Duration(seconds: 60),
+          receiveTimeout: const Duration(seconds: 480),
+          headers: {'Accept': '*/*'},
+        ));
+        // Attach auth token manually.
+        final tokenStorage = ref.read(tokenStorageProvider);
+        final accessToken = await tokenStorage.readAccessToken();
+        if (accessToken != null) {
+          binaryDio.options.headers['Authorization'] = 'Bearer $accessToken';
+        }
+
+        switch (widget.endpoint.method) {
+          case 'POST':
+            res = await binaryDio.post<dynamic>(resolvedPath,
+                data: bodyData, queryParameters: queryParams);
+          case 'PUT':
+            res = await binaryDio.put<dynamic>(resolvedPath,
+                data: bodyData, queryParameters: queryParams);
+          case 'DELETE':
+            res = await binaryDio.delete<dynamic>(resolvedPath,
+                queryParameters: queryParams);
+          default:
+            res = await binaryDio.get<dynamic>(resolvedPath,
+                queryParameters: queryParams);
+        }
+      } else {
+        switch (widget.endpoint.method) {
+          case 'POST':
+            res = await client.post<dynamic>(resolvedPath,
+                data: bodyData, queryParameters: queryParams);
+          case 'PUT':
+            res = await client.put<dynamic>(resolvedPath,
+                data: bodyData, queryParameters: queryParams);
+          case 'DELETE':
+            res = await client.delete<dynamic>(resolvedPath,
+                queryParameters: queryParams);
+          default:
+            res = await client.get<dynamic>(resolvedPath,
+                queryParameters: queryParams);
+        }
       }
 
       final contentType = res.headers.value('content-type') ?? '';
