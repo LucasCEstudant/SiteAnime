@@ -142,11 +142,12 @@ class _HorizontalPosterListState extends State<HorizontalPosterList> {
   bool _isMobile = false;
 
   /// Velocidade do auto-scroll: pixels por tick.
-  /// Doubled to compensate for the lower tick rate (30 fps instead of 60).
-  static const double _autoScrollSpeed = 4.0;
+  /// Increased to compensate for the lower tick rate (~20 fps).
+  static const double _autoScrollSpeed = 5.0;
 
-  /// Intervalo do tick (~30 fps — suficiente para scroll suave e reduz CPU).
-  static const Duration _autoScrollInterval = Duration(milliseconds: 32);
+  /// Intervalo do tick (~20 fps — suficiente para scroll suave, reduz CPU 
+  /// significativamente vs 60fps original).
+  static const Duration _autoScrollInterval = Duration(milliseconds: 50);
 
   @override
   void initState() {
@@ -268,20 +269,21 @@ class _HorizontalPosterListState extends State<HorizontalPosterList> {
                             final isHov = index == _hoveredIndex;
                             final normalLeft =
                                 AppSpacing.md + index * stride;
-                            final centerX = normalLeft +
-                                pW / 2 -
-                                scrollOff;
-                            final dist =
-                                (centerX - viewW / 2).abs();
-                            final norm = dist / (viewW * 0.46);
 
-                            // Perspectiva não se aplica ao card hovado
-                            final perspScale = isHov
-                                ? 1.0
-                                : _lerpClamp(1.0, 0.72, norm);
-                            final perspOpacity = isHov
-                                ? 1.0
-                                : _lerpClamp(1.0, 0.40, norm);
+                            // Skip perspective on mobile — saves heavy
+                            // per-card-per-frame math on weak devices.
+                            double perspScale = 1.0;
+                            double perspOpacity = 1.0;
+                            if (!_isMobile && !isHov) {
+                              final centerX = normalLeft +
+                                  pW / 2 -
+                                  scrollOff;
+                              final dist =
+                                  (centerX - viewW / 2).abs();
+                              final norm = dist / (viewW * 0.46);
+                              perspScale = _lerpClamp(1.0, 0.72, norm);
+                              perspOpacity = _lerpClamp(1.0, 0.40, norm);
+                            }
 
                             // Hover: 1.7× largura, 1.25× altura
                             final tw = isHov
@@ -306,11 +308,9 @@ class _HorizontalPosterListState extends State<HorizontalPosterList> {
                               width: tw,
                               height: th,
                               child: RepaintBoundary(
-                                child: AnimatedOpacity(
-                                  duration: const Duration(
-                                      milliseconds: 220),
-                                  curve: Curves.easeOutCubic,
-                                  opacity: perspOpacity,
+                                child: FadeTransition(
+                                  opacity: AlwaysStoppedAnimation(
+                                      perspOpacity),
                                   child: PosterCard(
                                     anime: widget.items[index],
                                     onHoverChanged: (hovered) {
@@ -458,15 +458,12 @@ class _PosterCardState extends State<PosterCard> {
             final id = widget.anime.externalId ?? '${widget.anime.id}';
             context.push('/anime/${widget.anime.source}/$id');
           },
-          // AnimatedContainer aplica border-radius suave so no hover
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              borderRadius:
-                  BorderRadius.circular(_hovered ? 6.0 : 0.0),
-            ),
+          // ClipRRect with Clip.hardEdge instead of AnimatedContainer
+          // — avoids implicit animation overhead and uses cheaper clipping.
+          child: ClipRRect(
+            clipBehavior: Clip.hardEdge,
+            borderRadius:
+                BorderRadius.circular(_hovered ? 6.0 : 0.0),
             child: Stack(
               fit: StackFit.expand,
               clipBehavior: Clip.none,
@@ -661,12 +658,6 @@ class _PosterHoverOverlay extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.88),
                     width: 1.5,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.45),
-                      blurRadius: 12,
-                    ),
-                  ],
                 ),
                 child: const Icon(
                   Icons.play_arrow_rounded,
@@ -776,37 +767,40 @@ class _NavArrowButtonState extends State<NavArrowButton> {
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: widget.onPressed,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+        // Use DecoratedBox + SizedBox instead of AnimatedContainer
+        // to avoid implicit animation cost on every hover toggle.
+        child: SizedBox(
           width: 64,
-          decoration: BoxDecoration(
-            color: widget.transparent
-                ? Colors.transparent
-                : (_hovered
-                    ? Colors.black.withValues(alpha: 0.20)
-                    : Colors.black.withValues(alpha: 0.05)),
-            borderRadius: BorderRadius.only(
-              topLeft: isLeft
-                  ? const Radius.circular(AppRadius.card)
-                  : Radius.zero,
-              bottomLeft: isLeft
-                  ? const Radius.circular(AppRadius.card)
-                  : Radius.zero,
-              topRight: isLeft
-                  ? Radius.zero
-                  : const Radius.circular(AppRadius.card),
-              bottomRight: isLeft
-                  ? Radius.zero
-                  : const Radius.circular(AppRadius.card),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: widget.transparent
+                  ? Colors.transparent
+                  : (_hovered
+                      ? Colors.black.withValues(alpha: 0.20)
+                      : Colors.black.withValues(alpha: 0.05)),
+              borderRadius: BorderRadius.only(
+                topLeft: isLeft
+                    ? const Radius.circular(AppRadius.card)
+                    : Radius.zero,
+                bottomLeft: isLeft
+                    ? const Radius.circular(AppRadius.card)
+                    : Radius.zero,
+                topRight: isLeft
+                    ? Radius.zero
+                    : const Radius.circular(AppRadius.card),
+                bottomRight: isLeft
+                    ? Radius.zero
+                    : const Radius.circular(AppRadius.card),
+              ),
             ),
-          ),
-          child: Center(
-            child: Icon(
-              isLeft
-                  ? Icons.chevron_left_rounded
-                  : Icons.chevron_right_rounded,
-              color: Colors.white.withValues(alpha: _hovered ? 1.0 : 0.75),
-              size: 36,
+            child: Center(
+              child: Icon(
+                isLeft
+                    ? Icons.chevron_left_rounded
+                    : Icons.chevron_right_rounded,
+                color: Colors.white.withValues(alpha: _hovered ? 1.0 : 0.75),
+                size: 36,
+              ),
             ),
           ),
         ),

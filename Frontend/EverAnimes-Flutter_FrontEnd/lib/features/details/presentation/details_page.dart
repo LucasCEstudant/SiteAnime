@@ -6,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/proxied_image.dart';
-import '../../../core/widgets/upscalable_hero_image.dart';
 import '../../../core/widgets/translatable_text.dart';
 import '../../../widgets/top_header.dart';
 import '../../../core/widgets/error_view.dart';
@@ -195,8 +194,8 @@ class _DetailsHeroBackground extends StatelessWidget {
           if (coverUrl != null)
             Hero(
               tag: heroTag,
-              child: UpscalableHeroImage(
-                imageUrl: coverUrl!,
+              child: ProxiedImage(
+                src: coverUrl!,
                 fit: BoxFit.cover,
                 errorBuilder: (ctx, err, _) => Container(
                   color: AppColors.surface,
