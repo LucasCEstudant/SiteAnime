@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/proxied_image.dart';
 import '../data/dtos/anime_details_dto.dart';
 import 'details_providers.dart';
 import 'embed_player.dart';
@@ -209,6 +210,7 @@ class _PlayerBody extends StatelessWidget {
           child: _EpisodeSidebar(
             episodes: eps,
             currentIndex: safeIndex,
+            fallbackCoverUrl: details.coverUrl,
             onSelect: onEpisodeChange,
           ),
         ),
@@ -263,6 +265,7 @@ class _PlayerBody extends StatelessWidget {
               episode: ep,
               index: i,
               isActive: isActive,
+              fallbackCoverUrl: details.coverUrl,
               onTap: () => onEpisodeChange(i),
             );
           }),
@@ -461,11 +464,13 @@ class _EpisodeSidebar extends StatelessWidget {
   const _EpisodeSidebar({
     required this.episodes,
     required this.currentIndex,
+    required this.fallbackCoverUrl,
     required this.onSelect,
   });
 
   final List<AnimeStreamingEpisodeDto> episodes;
   final int currentIndex;
+  final String? fallbackCoverUrl;
   final ValueChanged<int> onSelect;
 
   @override
@@ -501,6 +506,7 @@ class _EpisodeSidebar extends StatelessWidget {
                 episode: episodes[i],
                 index: i,
                 isActive: i == currentIndex,
+                fallbackCoverUrl: fallbackCoverUrl,
                 onTap: () => onSelect(i),
               ),
             ),
@@ -520,12 +526,14 @@ class _EpisodeListTile extends StatefulWidget {
     required this.episode,
     required this.index,
     required this.isActive,
+    required this.fallbackCoverUrl,
     required this.onTap,
   });
 
   final AnimeStreamingEpisodeDto episode;
   final int index;
   final bool isActive;
+  final String? fallbackCoverUrl;
   final VoidCallback onTap;
 
   @override
@@ -538,6 +546,10 @@ class _EpisodeListTileState extends State<_EpisodeListTile> {
   @override
   Widget build(BuildContext context) {
     final canEmbed = resolveEmbedUrl(widget.episode.url) != null;
+    final thumbUrl = resolveEpisodeThumbnail(
+      widget.episode.url,
+      fallbackCoverUrl: widget.fallbackCoverUrl,
+    );
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -558,19 +570,71 @@ class _EpisodeListTileState extends State<_EpisodeListTile> {
                   : Colors.transparent,
           child: Row(
             children: [
-              // Index number
-              SizedBox(
-                width: 28,
-                child: Text(
-                  '${widget.index + 1}',
-                  style: AppTextStyles.meta.copyWith(
-                    color: widget.isActive
-                        ? AppColors.accent
-                        : AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
+              // Thumbnail (same source logic as Details > Episodes)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.chip),
+                child: SizedBox(
+                  width: 84,
+                  height: 48,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (thumbUrl != null)
+                        ProxiedImage(
+                          src: thumbUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const ColoredBox(
+                            color: AppColors.surface,
+                            child: Center(
+                              child: Icon(
+                                Icons.movie,
+                                color: AppColors.textSecondary,
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        const ColoredBox(
+                          color: AppColors.surface,
+                          child: Center(
+                            child: Icon(
+                              Icons.movie,
+                              color: AppColors.textSecondary,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                      const DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            stops: [0.2, 1.0],
+                            colors: [
+                              Color(0x00000000),
+                              Color(0x99000000),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 4,
+                        bottom: 3,
+                        child: Text(
+                          '${widget.index + 1}',
+                          style: AppTextStyles.meta.copyWith(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
+              const SizedBox(width: AppSpacing.sm),
               // Playing indicator or play icon
               Icon(
                 widget.isActive
