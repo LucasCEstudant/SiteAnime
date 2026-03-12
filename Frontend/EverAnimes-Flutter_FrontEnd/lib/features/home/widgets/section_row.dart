@@ -142,10 +142,11 @@ class _HorizontalPosterListState extends State<HorizontalPosterList> {
   bool _isMobile = false;
 
   /// Velocidade do auto-scroll: pixels por tick.
-  static const double _autoScrollSpeed = 2.1;
+  /// Doubled to compensate for the lower tick rate (30 fps instead of 60).
+  static const double _autoScrollSpeed = 4.0;
 
-  /// Intervalo do tick (~60 fps).
-  static const Duration _autoScrollInterval = Duration(milliseconds: 16);
+  /// Intervalo do tick (~30 fps — suficiente para scroll suave e reduz CPU).
+  static const Duration _autoScrollInterval = Duration(milliseconds: 32);
 
   @override
   void initState() {
