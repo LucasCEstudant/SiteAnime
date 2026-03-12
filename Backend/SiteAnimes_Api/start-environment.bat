@@ -45,6 +45,9 @@ set "PS_SCRIPT=%~dp0scripts\start-environment.ps1"
 set "REPO_ROOT=%~dp0"
 set "LIBRE_CONTAINER=libretranslate"
 set "LIBRE_IMAGE=libretranslate/libretranslate"
+set "LIBRE_MODELS_VOLUME=libretranslate_models"
+set "LIBRE_CACHE_VOLUME=libretranslate_cache"
+set "LIBRE_LOAD_ONLY=pt,en,es,zh"
 set "EXIT_CODE=0"
 
 if not exist "%PS_SCRIPT%" (
@@ -90,8 +93,8 @@ if "%LIBRE_EXISTS%"=="1" (
 
 :libre_create
 echo [INFO] Criando container LibreTranslate a partir da imagem oficial...
-echo        docker run -d --name %LIBRE_CONTAINER% -p 5000:5000 %LIBRE_IMAGE%
-docker run -d --name %LIBRE_CONTAINER% -p 5000:5000 %LIBRE_IMAGE%
+echo        docker run -d --name %LIBRE_CONTAINER% -p 5000:5000 -e LT_LOAD_ONLY=%LIBRE_LOAD_ONLY% -v %LIBRE_MODELS_VOLUME%:/home/libretranslate/.local/share/argos-translate -v %LIBRE_CACHE_VOLUME%:/home/libretranslate/.local/cache %LIBRE_IMAGE% --load-only %LIBRE_LOAD_ONLY%
+docker run -d --name %LIBRE_CONTAINER% -p 5000:5000 -e LT_LOAD_ONLY=%LIBRE_LOAD_ONLY% -v %LIBRE_MODELS_VOLUME%:/home/libretranslate/.local/share/argos-translate -v %LIBRE_CACHE_VOLUME%:/home/libretranslate/.local/cache %LIBRE_IMAGE% --load-only %LIBRE_LOAD_ONLY%
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Falha ao criar container LibreTranslate.
     echo         Verifique se a porta 5000 esta livre e se o Docker esta rodando.
@@ -116,8 +119,8 @@ if "%PORT_OK%"=="0" (
 echo [OK] LibreTranslate ativo na porta 5000.
 
 echo [3/5] Aviso importante:
-echo        Na primeira execucao, o LibreTranslate precisa baixar todos os
-echo        pacotes de idiomas. Isso pode levar varios minutos.
+echo        Na primeira execucao, o LibreTranslate baixa apenas os modelos
+echo        configurados em LT_LOAD_ONLY=%LIBRE_LOAD_ONLY%.
 echo        Acompanhe: docker logs -f %LIBRE_CONTAINER%
 echo.
 
@@ -143,7 +146,7 @@ echo [5/5] Ambiente inicializado!
 echo.
 echo Nota:
 echo - LibreTranslate roda via imagem oficial: %LIBRE_IMAGE%
-echo - Aguarde o download dos pacotes de idioma; somente depois o endpoint de traducao estara disponivel.
+echo - Somente idiomas configurados em LT_LOAD_ONLY=%LIBRE_LOAD_ONLY% serao baixados.
 echo - Acompanhe os logs com: docker logs -f %LIBRE_CONTAINER%
 echo - Se necessario, reinicie: docker restart %LIBRE_CONTAINER%
 echo - O site funciona normalmente sem traducao; apenas as traducoes ficam indisponiveis ate os modelos serem baixados.

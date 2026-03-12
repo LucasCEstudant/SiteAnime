@@ -1,9 +1,18 @@
 version: '3.8'
 
+volumes:
+  libretranslate_models:
+    name: animehub_libretranslate_models
+  libretranslate_cache:
+    name: animehub_libretranslate_cache
+
 services:
   libretranslate:
     image: libretranslate/libretranslate:latest
     container_name: libretranslate
+    command: ["--load-only", "pt,en,es,zh"]
+    environment:
+      - LT_LOAD_ONLY=pt,en,es,zh
     ports:
       - "5000:5000"
     restart: on-failure
@@ -12,6 +21,9 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    volumes:
+      - "libretranslate_models:/home/libretranslate/.local/share/argos-translate:rw"
+      - "libretranslate_cache:/home/libretranslate/.local/cache:rw"
 
   api:
     build:
