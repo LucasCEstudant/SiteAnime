@@ -43,6 +43,9 @@ services:
     user: "0:0"
     stdin_open: true
     tty: true
+    command: ["--load-only", "pt,en,es,zh"]
+    environment:
+      - LT_LOAD_ONLY=pt,en,es,zh
     ports:
       - "32304:5000"
     restart: unless-stopped
@@ -80,6 +83,7 @@ services:
       - Translation__BaseUrl=http://libretranslate:5000
       - Translation__TimeoutSeconds=60
       - ImageUpscale__ServiceUrl=http://realesrgan:8000
+      - ImageUpscale__TimeoutSeconds=420
       - Cors__AllowedOrigins__0=http://localhost:32300
       - Serilog__MinimumLevel__Default=Warning
     ports:
@@ -93,7 +97,7 @@ services:
     container_name: realesrgan
     environment:
       - UPSCALE_MODE=auto
-      - ESRGAN_TIMEOUT=120
+      - ESRGAN_TIMEOUT=420
     ports:
       - "32305:8000"
     restart: unless-stopped

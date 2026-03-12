@@ -45,6 +45,9 @@ services:
     depends_on:
       libretranslate-init:
         condition: service_completed_successfully
+    command: ["--load-only", "pt,en,es,zh"]
+    environment:
+      - LT_LOAD_ONLY=pt,en,es,zh
     ports:
       - "5000:5000"
     restart: unless-stopped
@@ -81,6 +84,7 @@ services:
       - Translation__BaseUrl=http://libretranslate:5000
       - Translation__TimeoutSeconds=60
       - ImageUpscale__ServiceUrl=http://realesrgan:8000
+      - ImageUpscale__TimeoutSeconds=420
     ports:
       - "7118:80"
     restart: unless-stopped

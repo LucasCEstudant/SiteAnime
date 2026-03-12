@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,7 +24,9 @@ class _SwaggerEndpoint {
     this.parameters = const [],
     this.hasBody = false,
     this.bodySchema,
+    this.bodyExample,
     this.responses = const {},
+    this.produces = const [],
   });
 
   final String method; // GET, POST, PUT, DELETE ...
@@ -35,8 +36,14 @@ class _SwaggerEndpoint {
   final String? description;
   final List<_SwaggerParam> parameters;
   final bool hasBody;
-  final Map<String, dynamic>? bodySchema;
-  final Map<String, String> responses; // statusCode → description
+  final Map<String, dynamic>? bodySchema;        // raw resolved schema
+  final Map<String, dynamic>? bodyExample;       // pre-built example object
+  final Map<String, String> responses;           // statusCode → description
+  final List<String> produces;                   // response content-types (2xx)
+
+  /// Whether the 2xx response is expected to be binary (image/* etc.).
+  bool get isBinaryResponse => produces
+      .any((ct) => ct.startsWith('image/') || ct == 'application/octet-stream');
 }
 
 class _SwaggerParam {
@@ -59,6 +66,91 @@ class _SwaggerParam {
 // Provider — fetch and parse swagger.json
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Schema helpers — $ref resolution + example generation
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Resolves a `$ref` like `#/components/schemas/Foo` against [components].
+Map<String, dynamic> _resolveRef(
+    String ref, Map<String, dynamic> components) {
+  if (!ref.startsWith('#/components/schemas/')) return {};
+  final name = ref.replaceFirst('#/components/schemas/', '');
+  return (components[name] as Map<String, dynamic>?) ?? {};
+}
+
+/// Returns the resolved schema (follows $ref one level).
+Map<String, dynamic> _resolveSchema(
+    Map<String, dynamic> schema, Map<String, dynamic> components) {
+  if (schema.containsKey(r'$ref')) {
+    final ref = schema[r'$ref'] as String;
+    return _resolveRef(ref, components);
+  }
+  return schema;
+}
+
+/// Builds an example value for a single swagger [rawSchema] node.
+dynamic _buildExampleValue(
+    Map<String, dynamic> rawSchema, Map<String, dynamic> components,
+    [int depth = 0]) {
+  if (depth > 6) return null;
+  final schema = _resolveSchema(rawSchema, components);
+
+  if (schema.containsKey('example')) return schema['example'];
+
+  final type = schema['type'] as String?;
+  final format = schema['format'] as String?;
+
+  for (final key in ['allOf', 'anyOf', 'oneOf']) {
+    final list = schema[key] as List?;
+    if (list != null && list.isNotEmpty) {
+      return _buildExampleValue(
+          list.first as Map<String, dynamic>, components, depth + 1);
+    }
+  }
+
+  switch (type) {
+    case 'object':
+      final props = schema['properties'] as Map<String, dynamic>?;
+      if (props == null) return {};
+      return {
+        for (final e in props.entries)
+          e.key: _buildExampleValue(
+              e.value as Map<String, dynamic>, components, depth + 1)
+      };
+    case 'array':
+      final items = schema['items'] as Map<String, dynamic>?;
+      if (items == null) return [];
+      return [_buildExampleValue(items, components, depth + 1)];
+    case 'integer':
+      return 0;
+    case 'number':
+      return 0.0;
+    case 'boolean':
+      return true;
+    case 'string':
+      if (format == 'date-time') return '2024-01-01T00:00:00Z';
+      if (format == 'date') return '2024-01-01';
+      if (format == 'uuid') return '00000000-0000-0000-0000-000000000000';
+      if (format == 'uri' || format == 'url') return 'https://example.com';
+      if (format == 'email') return 'user@example.com';
+      return 'string';
+    default:
+      final props = schema['properties'] as Map<String, dynamic>?;
+      if (props != null) {
+        return {
+          for (final e in props.entries)
+            e.key: _buildExampleValue(
+                e.value as Map<String, dynamic>, components, depth + 1)
+        };
+      }
+      return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Provider — fetch and parse swagger.json
+// ─────────────────────────────────────────────────────────────────────────────
+
 final _swaggerProvider =
     FutureProvider.autoDispose<List<_SwaggerEndpoint>>((ref) async {
   final client = ref.watch(apiClientProvider);
@@ -67,6 +159,12 @@ final _swaggerProvider =
   final json = res.data is String
       ? jsonDecode(res.data as String) as Map<String, dynamic>
       : res.data as Map<String, dynamic>;
+
+  // components.schemas for $ref resolution
+  final components =
+      ((json['components'] as Map<String, dynamic>?)?['schemas']
+          as Map<String, dynamic>?) ??
+          {};
 
   final paths = json['paths'] as Map<String, dynamic>? ?? {};
   final endpoints = <_SwaggerEndpoint>[];
@@ -97,26 +195,35 @@ final _swaggerProvider =
         );
       }).toList();
 
-      // Request body
+      // Request body — resolve $ref, build example
       final reqBody = op['requestBody'] as Map<String, dynamic>?;
       final hasBody = reqBody != null;
       Map<String, dynamic>? bodySchema;
+      Map<String, dynamic>? bodyExample;
       if (hasBody) {
         final content = reqBody['content'] as Map<String, dynamic>?;
         final jsonContent =
             content?['application/json'] as Map<String, dynamic>?;
-        bodySchema = jsonContent?['schema'] as Map<String, dynamic>?;
+        final rawSchema = jsonContent?['schema'] as Map<String, dynamic>?;
+        if (rawSchema != null) {
+          bodySchema = _resolveSchema(rawSchema, components);
+          final exVal = _buildExampleValue(rawSchema, components);
+          if (exVal is Map<String, dynamic>) bodyExample = exVal;
+        }
       }
 
-      // Responses
+      // Responses — description + collect produces content-types for 2xx
       final rawResponses =
           op['responses'] as Map<String, dynamic>? ?? {};
       final responses = <String, String>{};
+      final produces = <String>[];
       for (final rEntry in rawResponses.entries) {
-        final desc =
-            (rEntry.value as Map<String, dynamic>)['description'] as String? ??
-                '';
-        responses[rEntry.key] = desc;
+        final rv = rEntry.value as Map<String, dynamic>;
+        responses[rEntry.key] = rv['description'] as String? ?? '';
+        if (rEntry.key.startsWith('2')) {
+          final ct = rv['content'] as Map<String, dynamic>?;
+          if (ct != null) produces.addAll(ct.keys);
+        }
       }
 
       endpoints.add(_SwaggerEndpoint(
@@ -128,7 +235,9 @@ final _swaggerProvider =
         parameters: params,
         hasBody: hasBody,
         bodySchema: bodySchema,
+        bodyExample: bodyExample,
         responses: responses,
+        produces: produces,
       ));
     }
   }
@@ -552,8 +661,9 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
   final Map<String, TextEditingController> _paramControllers = {};
   final _bodyController = TextEditingController();
   String? _responseBody;
-  Uint8List? _responseImageBytes;
   int? _responseStatus;
+  Uint8List? _binaryBody;
+  String? _binaryContentType;
   bool _loading = false;
   String? _errorMsg;
 
@@ -564,7 +674,10 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
       _paramControllers[p.name] = TextEditingController();
     }
     if (widget.endpoint.hasBody) {
-      _bodyController.text = '{}';
+      final ex = widget.endpoint.bodyExample;
+      _bodyController.text = ex != null
+          ? const JsonEncoder.withIndent('  ').convert(ex)
+          : '{}';
     }
   }
 
@@ -577,19 +690,77 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
     super.dispose();
   }
 
+  Uint8List? _extractBinaryBytes(dynamic data) {
+    if (data == null) return null;
+
+    if (data is Uint8List) return data;
+
+    if (data is List<int>) return Uint8List.fromList(data);
+
+    if (data is String) {
+      final raw = data.trim();
+      if (raw.isEmpty) return null;
+
+      // 1) Try data-URI prefix (e.g. "data:image/png;base64,...")
+      var base64Payload = raw;
+      final dataUriIdx = raw.indexOf('base64,');
+      if (dataUriIdx >= 0) {
+        base64Payload = raw.substring(dataUriIdx + 'base64,'.length);
+      }
+
+      try {
+        return base64Decode(base64Payload);
+      } catch (_) {
+        // not valid base64 – fall through
+      }
+
+      // 2) Raw binary string (Latin-1 / codeUnits) — Dio on web sometimes
+      //    decodes binary payloads as String instead of Uint8List.
+      try {
+        final bytes = Uint8List.fromList(raw.codeUnits);
+        // Quick sanity: check for common image headers
+        if (bytes.length > 4) {
+          final isPng = bytes[0] == 0x89 && bytes[1] == 0x50;
+          final isJpeg = bytes[0] == 0xFF && bytes[1] == 0xD8;
+          final isGif = bytes[0] == 0x47 && bytes[1] == 0x49;
+          final isWebp = bytes.length > 11 &&
+              bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42;
+          if (isPng || isJpeg || isGif || isWebp) return bytes;
+        }
+        // Even without recognized header, return the bytes —
+        // the caller can try rendering them.
+        if (bytes.length > 16) return bytes;
+      } catch (_) {
+        // codeUnits conversion failed
+      }
+
+      return null;
+    }
+
+    if (data is Map) {
+      for (final key in const ['data', 'image', 'bytes', 'base64']) {
+        if (!data.containsKey(key)) continue;
+        final nested = data[key];
+        final parsed = _extractBinaryBytes(nested);
+        if (parsed != null) return parsed;
+      }
+    }
+
+    return null;
+  }
+
   Future<void> _send() async {
     setState(() {
       _loading = true;
       _responseBody = null;
-      _responseImageBytes = null;
       _responseStatus = null;
+      _binaryBody = null;
       _errorMsg = null;
     });
 
     try {
       final client = ref.read(apiClientProvider);
 
-      // Build path with path params
       var resolvedPath = widget.endpoint.path;
       final queryParams = <String, dynamic>{};
 
@@ -603,60 +774,99 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
         }
       }
 
-      // Request as bytes so we can detect image / binary responses.
-      final bytesOpt = Options(responseType: ResponseType.bytes);
-
-      Response<dynamic> res;
-      final bodyData =
-          widget.endpoint.hasBody && _bodyController.text.isNotEmpty
-              ? jsonDecode(_bodyController.text)
-              : null;
-
-      switch (widget.endpoint.method) {
-        case 'POST':
-          res = await client.post<List<int>>(resolvedPath,
-              data: bodyData,
-              queryParameters: queryParams,
-              options: bytesOpt);
-        case 'PUT':
-          res = await client.put<List<int>>(resolvedPath,
-              data: bodyData,
-              queryParameters: queryParams,
-              options: bytesOpt);
-        case 'DELETE':
-          res = await client.delete<List<int>>(resolvedPath,
-              queryParameters: queryParams, options: bytesOpt);
-        default: // GET
-          res = await client.get<List<int>>(resolvedPath,
-              queryParameters: queryParams, options: bytesOpt);
+      Object? bodyData;
+      if (widget.endpoint.hasBody && _bodyController.text.trim().isNotEmpty) {
+        bodyData = jsonDecode(_bodyController.text);
       }
 
-      // Check content-type to decide how to display the response.
-      final contentType =
-          res.headers.value('content-type')?.toLowerCase() ?? '';
-      final isImage = contentType.startsWith('image/');
+      // Use ResponseType.bytes when the endpoint declares an image response.
+      // Override Accept header so the server returns raw bytes, not JSON-wrapped.
+      final useBinary = widget.endpoint.isBinaryResponse;
+      final options = useBinary
+          ? Options(
+              responseType: ResponseType.bytes,
+              sendTimeout: const Duration(seconds: 60),
+              receiveTimeout: const Duration(seconds: 480),
+              headers: {'Accept': '*/*'},
+            )
+          : null;
 
-      if (isImage && res.data != null) {
-        final bytes = Uint8List.fromList(res.data as List<int>);
-        setState(() {
-          _responseStatus = res.statusCode;
-          _responseImageBytes = bytes;
-        });
+      Response<dynamic> res;
+      switch (widget.endpoint.method) {
+        case 'POST':
+          res = await client.post<dynamic>(resolvedPath,
+              data: bodyData, queryParameters: queryParams, options: options);
+        case 'PUT':
+          res = await client.put<dynamic>(resolvedPath,
+              data: bodyData, queryParameters: queryParams, options: options);
+        case 'DELETE':
+          res = await client.delete<dynamic>(resolvedPath,
+              queryParameters: queryParams, options: options);
+        default:
+          res = await client.get<dynamic>(resolvedPath,
+              queryParameters: queryParams, options: options);
+      }
+
+      final contentType = res.headers.value('content-type') ?? '';
+      final isBinary = useBinary ||
+          contentType.startsWith('image/') ||
+          contentType == 'application/octet-stream' ||
+          res.data is Uint8List ||
+          res.data is List<int>;
+
+      if (isBinary) {
+        final bytes = _extractBinaryBytes(res.data);
+
+        if (bytes != null) {
+          setState(() {
+            _responseStatus = res.statusCode;
+            _binaryBody = bytes;
+            _binaryContentType =
+                contentType.isNotEmpty ? contentType : 'image/*';
+            _responseBody = null;
+            _errorMsg = null;
+          });
+        } else {
+          // Show debug info so we can diagnose the format
+          final preview = res.data is String
+              ? (res.data as String).substring(
+                  0,
+                  (res.data as String).length > 120
+                      ? 120
+                      : (res.data as String).length)
+              : res.data?.toString().substring(
+                      0,
+                      (res.data?.toString().length ?? 0) > 120
+                          ? 120
+                          : (res.data?.toString().length ?? 0)) ??
+                  '';
+          setState(() {
+            _responseStatus = res.statusCode;
+            _errorMsg =
+                'Expected binary response but received unsupported data format.\n'
+                'Content-Type: $contentType\n'
+                'Runtime type: ${res.data.runtimeType}\n'
+                'Data length: ${res.data is String ? (res.data as String).length : "?"}\n'
+                'Preview: $preview';
+            _binaryBody = null;
+            _responseBody = null;
+          });
+        }
       } else {
-        // Decode bytes → UTF-8 string → pretty-print JSON.
-        String prettyBody = '';
-        if (res.data != null) {
-          final raw = utf8.decode(res.data as List<int>, allowMalformed: true);
-          try {
-            final parsed = jsonDecode(raw);
-            prettyBody = const JsonEncoder.withIndent('  ').convert(parsed);
-          } catch (_) {
-            prettyBody = raw;
-          }
+        String prettyBody;
+        try {
+          prettyBody = res.data != null
+              ? const JsonEncoder.withIndent('  ').convert(res.data)
+              : '';
+        } catch (_) {
+          prettyBody = res.data?.toString() ?? '';
         }
         setState(() {
           _responseStatus = res.statusCode;
           _responseBody = prettyBody;
+          _binaryBody = null;
+          _binaryContentType = null;
+          _errorMsg = null;
         });
       }
     } on ApiException catch (e) {
@@ -682,20 +892,22 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
     final l10n = AppLocalizations.of(context)!;
     final ep = widget.endpoint;
     final mc = _EndpointTile.methodColor(ep.method);
+    final hasResponse =
+        _responseBody != null || _errorMsg != null || _binaryBody != null;
 
     return Dialog(
       backgroundColor: AppColors.bgBase,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.dialog)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 760),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
+              // ── Header ──────────────────────────────────────────────────
               Row(
                 children: [
                   Container(
@@ -727,9 +939,37 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
                   ),
                 ],
               ),
+              if (ep.summary != null) ...[
+                const SizedBox(height: 4),
+                Text(ep.summary!,
+                    style: const TextStyle(
+                        color: AppColors.textSecondary, fontSize: 12)),
+              ],
+              // produces badge
+              if (ep.produces.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 4,
+                  children: ep.produces
+                      .map((ct) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceVariant,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(ct,
+                                style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 10,
+                                    fontFamily: 'monospace')),
+                          ))
+                      .toList(),
+                ),
+              ],
               const Divider(color: AppColors.surfaceVariant),
 
-              // Scrollable content
+              // ── Scrollable content ───────────────────────────────────────
               Flexible(
                 child: SingleChildScrollView(
                   child: Column(
@@ -737,11 +977,7 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
                     children: [
                       // Parameters
                       if (ep.parameters.isNotEmpty) ...[
-                        Text(l10n.apiExplorerParams,
-                            style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13)),
+                        _sectionLabel(l10n.apiExplorerParams),
                         const SizedBox(height: 8),
                         ...ep.parameters.map((p) => Padding(
                               padding: const EdgeInsets.only(bottom: 8),
@@ -757,7 +993,7 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
                                   labelStyle: const TextStyle(
                                       color: AppColors.textSecondary,
                                       fontSize: 12),
-                                  hintText: p.type,
+                                  hintText: p.description ?? p.type,
                                   hintStyle: const TextStyle(
                                       color: AppColors.textSecondary,
                                       fontSize: 12),
@@ -773,29 +1009,48 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
                                 ),
                               ),
                             )),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
                       ],
 
-                      // Body
+                      // Request body
                       if (ep.hasBody) ...[
-                        Text(l10n.apiExplorerBody,
-                            style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13)),
-                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            _sectionLabel(l10n.apiExplorerBody),
+                            const Spacer(),
+                            TextButton.icon(
+                              style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  foregroundColor: AppColors.textSecondary),
+                              icon: const Icon(Icons.refresh, size: 14),
+                              label: const Text('Reset',
+                                  style: TextStyle(fontSize: 11)),
+                              onPressed: () {
+                                final ex = widget.endpoint.bodyExample;
+                                _bodyController.text = ex != null
+                                    ? const JsonEncoder.withIndent('  ')
+                                        .convert(ex)
+                                    : '{}';
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
                         TextField(
                           controller: _bodyController,
-                          maxLines: 6,
+                          maxLines: 8,
                           style: const TextStyle(
                               color: AppColors.textPrimary,
                               fontSize: 12,
                               fontFamily: 'monospace'),
                           decoration: InputDecoration(
                             isDense: true,
-                            hintText: 'JSON',
+                            hintText: 'application/json',
                             hintStyle: const TextStyle(
-                                color: AppColors.textSecondary),
+                                color: AppColors.textSecondary, fontSize: 11),
                             enabledBorder: OutlineInputBorder(
                               borderSide: BorderSide(
                                   color:
@@ -814,8 +1069,8 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: FilledButton.icon(
-                          style:
-                              FilledButton.styleFrom(backgroundColor: mc),
+                          style: FilledButton.styleFrom(
+                              backgroundColor: mc),
                           onPressed: _loading ? null : _send,
                           icon: _loading
                               ? const SizedBox(
@@ -831,18 +1086,13 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
                         ),
                       ),
 
-                      // Response
-                      if (_responseBody != null ||
-                          _responseImageBytes != null ||
-                          _errorMsg != null) ...[
+                      // Response section
+                      if (hasResponse) ...[
                         const SizedBox(height: 16),
+                        // Response header row
                         Row(
                           children: [
-                            Text(l10n.apiExplorerResponse,
-                                style: const TextStyle(
-                                    color: AppColors.textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13)),
+                            _sectionLabel(l10n.apiExplorerResponse),
                             if (_responseStatus != null) ...[
                               const SizedBox(width: 8),
                               Container(
@@ -856,56 +1106,94 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
                                 ),
                                 child: Text('$_responseStatus',
                                     style: TextStyle(
-                                        color:
-                                            _EndpointTile.responseColor(
-                                                _responseStatus
-                                                    .toString()),
+                                        color: _EndpointTile.responseColor(
+                                            _responseStatus.toString()),
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
                                         fontFamily: 'monospace')),
                               ),
                             ],
                             const Spacer(),
-                            if (_responseBody != null)
+                            if (_binaryBody != null)
+                              IconButton(
+                                icon: const Icon(Icons.copy,
+                                    size: 16,
+                                    color: AppColors.textSecondary),
+                                tooltip: 'Copy as base64',
+                                onPressed: () => Clipboard.setData(
+                                    ClipboardData(
+                                        text: base64Encode(_binaryBody!))),
+                              )
+                            else if (_responseBody != null)
                               IconButton(
                                 icon: const Icon(Icons.copy,
                                     size: 16,
                                     color: AppColors.textSecondary),
                                 tooltip: 'Copy',
-                                onPressed: () {
-                                  Clipboard.setData(ClipboardData(
-                                      text: _responseBody!));
-                                },
+                                onPressed: () => Clipboard.setData(
+                                    ClipboardData(text: _responseBody!)),
                               ),
                           ],
                         ),
                         const SizedBox(height: 8),
-                        // Image response — render visually
-                        if (_responseImageBytes != null)
+
+                        // Binary image preview
+                        if (_binaryBody != null) ...[
                           Container(
                             width: double.infinity,
                             constraints:
-                                const BoxConstraints(maxHeight: 400),
+                                const BoxConstraints(maxHeight: 340),
+                            padding: const EdgeInsets.all(12),
+                            clipBehavior: Clip.hardEdge,
                             decoration: BoxDecoration(
                               color: AppColors.surface,
                               borderRadius:
                                   BorderRadius.circular(AppRadius.card),
                             ),
-                            child: ClipRRect(
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.card),
-                              child: Image.memory(
-                                _responseImageBytes!,
-                                fit: BoxFit.contain,
-                              ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if ((_binaryContentType ?? '')
+                                    .startsWith('image/'))
+                                  Flexible(
+                                    child: Center(
+                                      child: Image.memory(
+                                        _binaryBody!,
+                                        fit: BoxFit.contain,
+                                        errorBuilder:
+                                            (_, error, __) => Padding(
+                                          padding:
+                                              const EdgeInsets.all(16),
+                                          child: Text(
+                                            'Failed to decode image: $error',
+                                            style: const TextStyle(
+                                              color: AppColors.accent,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${_binaryContentType ?? 'binary'} · '
+                                  '${(_binaryBody!.lengthInBytes / 1024).toStringAsFixed(1)} KB',
+                                  style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 11),
+                                ),
+                              ],
                             ),
-                          )
-                        // Text / JSON response
+                          ),
+                        ]
+                        // JSON / text response
                         else
                           Container(
                             width: double.infinity,
                             constraints:
-                                const BoxConstraints(maxHeight: 200),
+                                const BoxConstraints(maxHeight: 220),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: AppColors.surface,
@@ -936,4 +1224,12 @@ class _TryItDialogState extends ConsumerState<_TryItDialog> {
       ),
     );
   }
+
+  Widget _sectionLabel(String text) => Text(
+        text,
+        style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
+            fontSize: 13),
+      );
 }

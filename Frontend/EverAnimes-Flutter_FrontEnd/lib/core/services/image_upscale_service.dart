@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -11,22 +12,32 @@ import '../../features/auth/data/token_storage.dart';
 /// `POST /api/images/upscale` endpoint.
 ///
 /// The service:
-/// - caches upscaled bytes by original URL (`Map<String, Uint8List>`)
+/// - caches upscaled bytes by original URL (LRU, max [_kMaxCacheEntries])
 /// - avoids duplicate in-flight requests for the same URL
 /// - respects 429 backoff (single retry with 3 s delay)
 /// - never calls the endpoint when the user is not authenticated
+/// - reuses a single [Dio] instance
 class ImageUpscaleService {
   ImageUpscaleService({
     required TokenStorage tokenStorage,
     String? baseUrl,
   })  : _tokenStorage = tokenStorage,
-        _baseUrl = baseUrl ?? kApiBaseUrl;
+        _dio = Dio(BaseOptions(
+          baseUrl: baseUrl ?? kApiBaseUrl,
+          connectTimeout: const Duration(seconds: 10),
+          // Upscale can take several minutes through the full chain.
+          receiveTimeout: const Duration(seconds: 480),
+          responseType: ResponseType.bytes,
+        ));
 
   final TokenStorage _tokenStorage;
-  final String _baseUrl;
+  final Dio _dio;
 
-  /// Completed upscale results.
-  final Map<String, Uint8List> _cache = {};
+  /// Max cached entries before the oldest is evicted (LRU).
+  static const _kMaxCacheEntries = 20;
+
+  /// Completed upscale results (insertion-ordered for LRU eviction).
+  final LinkedHashMap<String, Uint8List> _cache = LinkedHashMap();
 
   /// In-flight requests so we don't duplicate them.
   final Map<String, Future<Uint8List?>> _inflight = {};
@@ -56,17 +67,9 @@ class ImageUpscaleService {
     final stored = await _tokenStorage.readAll();
     if (stored == null) return null;
 
-    final dio = Dio(BaseOptions(
-      baseUrl: _baseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      // Upscale can take up to 2 minutes.
-      receiveTimeout: const Duration(seconds: 130),
-      responseType: ResponseType.bytes,
-    ));
-
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
-        final response = await dio.post<List<int>>(
+        final response = await _dio.post<List<int>>(
           '/api/images/upscale',
           data: {'imageUrl': imageUrl},
           options: Options(
@@ -79,7 +82,7 @@ class ImageUpscaleService {
 
         if (response.statusCode == 200 && response.data != null) {
           final bytes = Uint8List.fromList(response.data!);
-          _cache[imageUrl] = bytes;
+          _putCache(imageUrl, bytes);
           return bytes;
         }
         return null;
@@ -95,6 +98,15 @@ class ImageUpscaleService {
       }
     }
     return null;
+  }
+
+  /// Insert into cache with LRU eviction when exceeding max entries.
+  void _putCache(String key, Uint8List value) {
+    _cache.remove(key);
+    _cache[key] = value;
+    while (_cache.length > _kMaxCacheEntries) {
+      _cache.remove(_cache.keys.first);
+    }
   }
 }
 

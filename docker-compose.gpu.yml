@@ -1,12 +1,25 @@
 # GPU override for Real-ESRGAN on hosts with NVIDIA runtime available.
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+#
+# The "graphics" capability enables Vulkan/OpenGL inside the container
+# (required by realesrgan-ncnn-vulkan).
+#
+# NOTE: On Docker Desktop for Windows (WSL2 backend) the NVIDIA Container
+# Toolkit only injects CUDA libraries — NOT Vulkan ICD drivers.  The
+# Dockerfile therefore bundles mesa-vulkan-drivers (llvmpipe) so ncnn can
+# still use a software Vulkan device.  On native Linux hosts with the full
+# NVIDIA Container Toolkit the real GPU Vulkan driver IS injected
+# automatically (no volume mount required).
 services:
   realesrgan:
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
               count: 1
-              capabilities: [gpu]
+              capabilities: [gpu, graphics]
