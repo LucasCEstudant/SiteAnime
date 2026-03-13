@@ -213,10 +213,18 @@ class _MiniCarouselStripState extends State<_MiniCarouselStrip> {
                       builder: (ctx, _) {
                         final scrollOffset =
                             _scroll.hasClients ? _scroll.offset : 0.0;
+                        final isMobile = AppBreakpoints.isMobile(ctx);
 
                         // Gera dados de perspectiva para cada card
                         final cardData =
                             List.generate(widget.items.length, (index) {
+                          if (isMobile) {
+                            return (
+                              index: index,
+                              scale: 1.0,
+                              opacity: 1.0,
+                            );
+                          }
                           final cardCenterX = AppSpacing.md +
                               index * itemStride +
                               cardSz / 2 -
@@ -357,16 +365,18 @@ class _MiniPosterCardState extends State<MiniPosterCard> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
+
     return Semantics(
       label: AppLocalizations.of(context)!.watchAnime(widget.anime.title),
       button: true,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
-        onEnter: (_) {
+        onEnter: isMobile ? null : (_) {
           setState(() => _hovered = true);
           widget.onHoverChanged?.call(true);
         },
-        onExit: (_) {
+        onExit: isMobile ? null : (_) {
           setState(() => _hovered = false);
           widget.onHoverChanged?.call(false);
         },
@@ -376,7 +386,7 @@ class _MiniPosterCardState extends State<MiniPosterCard> {
             context.push('/anime/${widget.anime.source}/$id');
           },
           child: AnimatedScale(
-            scale: _hovered ? 1.45 : 1.0,
+            scale: (_hovered && !isMobile) ? 1.45 : 1.0,
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
             child: SizedBox(

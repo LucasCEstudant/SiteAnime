@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/data/dtos/anime_item_dto.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/widgets/upscalable_hero_image.dart';
+import '../../../core/utils/proxied_image.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/domain/auth_state_provider.dart';
 import '../../details/data/dtos/anime_details_dto.dart';
@@ -185,8 +185,8 @@ class _HeroBackgroundImage extends StatelessWidget {
     final dpr = mq.devicePixelRatio.clamp(1.0, 3.0);
     final decodeWidth = (mq.size.width * dpr).toInt();
 
-    return UpscalableHeroImage(
-      imageUrl: coverUrl,
+    return ProxiedImage(
+      src: coverUrl,
       fit: BoxFit.cover,
       width: double.infinity,
       height: double.infinity,

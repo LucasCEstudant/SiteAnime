@@ -129,7 +129,8 @@ class HorizontalPosterList extends StatefulWidget {
   State<HorizontalPosterList> createState() => _HorizontalPosterListState();
 }
 
-class _HorizontalPosterListState extends State<HorizontalPosterList> {
+class _HorizontalPosterListState extends State<HorizontalPosterList>
+    with WidgetsBindingObserver {
   final ScrollController _scroll = ScrollController();
   bool _hovered = false;
   int? _hoveredIndex;
@@ -152,16 +153,43 @@ class _HorizontalPosterListState extends State<HorizontalPosterList> {
   void initState() {
     super.initState();
     _scroll.addListener(_updateArrows);
-    // O timer inicia, mas só produz efeito em desktop (verificado no tick).
+    WidgetsBinding.instance.addObserver(this);
+    // O timer só inicia em desktop; _setMobile() o cancela quando necessário.
     _startAutoScroll();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _autoScrollTimer?.cancel();
     _scroll.removeListener(_updateArrows);
     _scroll.dispose();
     super.dispose();
+  }
+
+  /// Pausa o timer quando o app vai para segundo plano (aba escondida no web,
+  /// app minimizado em mobile) e retoma quando volta ao foco.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (!_isMobile) _startAutoScroll();
+    } else {
+      _autoScrollTimer?.cancel();
+      _autoScrollTimer = null;
+    }
+  }
+
+  /// Cancela ou inicia o timer conforme a plataforma muda (ex: redimensionamento
+  /// que coloca/retira o layout do modo mobile).
+  void _setMobile(bool isMobile) {
+    if (_isMobile == isMobile) return;
+    _isMobile = isMobile;
+    if (_isMobile) {
+      _autoScrollTimer?.cancel();
+      _autoScrollTimer = null;
+    } else {
+      _startAutoScroll();
+    }
   }
 
   void _startAutoScroll() {
@@ -220,7 +248,7 @@ class _HorizontalPosterListState extends State<HorizontalPosterList> {
       child: LayoutBuilder(
         builder: (ctx, constraints) {
           final viewW = constraints.maxWidth;
-          _isMobile = viewW < AppBreakpoints.mobile;
+          _setMobile(viewW < AppBreakpoints.mobile);
           final vignetteW = _isMobile ? 32.0 : 80.0;
           final pW = _posterW(viewW);
           final pH = _posterH(viewW);
@@ -268,26 +296,33 @@ class _HorizontalPosterListState extends State<HorizontalPosterList> {
                             final isHov = index == _hoveredIndex;
                             final normalLeft =
                                 AppSpacing.md + index * stride;
-                            final centerX = normalLeft +
-                                pW / 2 -
-                                scrollOff;
-                            final dist =
-                                (centerX - viewW / 2).abs();
-                            final norm = dist / (viewW * 0.46);
 
-                            // Perspectiva não se aplica ao card hovado
-                            final perspScale = isHov
-                                ? 1.0
-                                : _lerpClamp(1.0, 0.72, norm);
-                            final perspOpacity = isHov
-                                ? 1.0
-                                : _lerpClamp(1.0, 0.40, norm);
+                            // Skip perspective on mobile — just use 1.0 scale/opacity
+                            double perspScale;
+                            double perspOpacity;
+                            if (_isMobile) {
+                              perspScale = 1.0;
+                              perspOpacity = 1.0;
+                            } else {
+                              final centerX = normalLeft +
+                                  pW / 2 -
+                                  scrollOff;
+                              final dist =
+                                  (centerX - viewW / 2).abs();
+                              final norm = dist / (viewW * 0.46);
+                              perspScale = isHov
+                                  ? 1.0
+                                  : _lerpClamp(1.0, 0.72, norm);
+                              perspOpacity = isHov
+                                  ? 1.0
+                                  : _lerpClamp(1.0, 0.40, norm);
+                            }
 
-                            // Hover: 1.7× largura, 1.25× altura
-                            final tw = isHov
+                            // Hover: 1.7× largura, 1.25× altura — desktop only
+                            final tw = (isHov && !_isMobile)
                                 ? pW * 1.7
                                 : pW * perspScale;
-                            final th = isHov
+                            final th = (isHov && !_isMobile)
                                 ? pH * 1.25
                                 : pH * perspScale;
 
@@ -439,17 +474,18 @@ class _PosterCardState extends State<PosterCard> {
   Widget build(BuildContext context) {
     final heroTag =
         'poster-${widget.anime.source}-${widget.anime.externalId ?? widget.anime.id}';
+    final isMobile = AppBreakpoints.isMobile(context);
 
     return Semantics(
       label: AppLocalizations.of(context)!.watchAnime(widget.anime.title),
       button: true,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
-        onEnter: (_) {
+        onEnter: isMobile ? null : (_) {
           setState(() => _hovered = true);
           widget.onHoverChanged(true);
         },
-        onExit: (_) {
+        onExit: isMobile ? null : (_) {
           setState(() => _hovered = false);
           widget.onHoverChanged(false);
         },
@@ -478,16 +514,16 @@ class _PosterCardState extends State<PosterCard> {
                 ),
 
                 // Desktop: info persistente (título + nota) na base
-                if (!AppBreakpoints.isMobile(context))
+                if (!isMobile)
                   _PosterBaseInfo(
                     anime: widget.anime,
                     visible: !_hovered,
                   ),
 
-                // Overlay com info — visível no hover (ou sempre no mobile)
+                // Overlay com info — visível no hover (ou always on mobile)
                 _PosterHoverOverlay(
                   anime: widget.anime,
-                  visible: _hovered || AppBreakpoints.isMobile(context),
+                  visible: _hovered || isMobile,
                 ),
               ],
             ),
@@ -608,6 +644,8 @@ class _PosterHoverOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
+
     return AnimatedOpacity(
       opacity: visible ? 1.0 : 0.0,
       duration: const Duration(milliseconds: 200),
@@ -649,32 +687,33 @@ class _PosterHoverOverlay extends StatelessWidget {
               ),
             ),
 
-            // ── Ícone play centralizado ─────────────────────────────
-            Center(
-              child: Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black.withValues(alpha: 0.52),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.88),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.45),
-                      blurRadius: 12,
+            // ── Ícone play centralizado — hidden on mobile ──────
+            if (!isMobile)
+              Center(
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.black.withValues(alpha: 0.52),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.88),
+                      width: 1.5,
                     ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.play_arrow_rounded,
-                  color: AppColors.accent, // vermelho EverAnimes
-                  size: 28,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        blurRadius: 12,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.play_arrow_rounded,
+                    color: AppColors.accent, // vermelho EverAnimes
+                    size: 28,
+                  ),
                 ),
               ),
-            ),
 
             // ── Info na base (scaled up for expanded hover) ────────
             Positioned(
@@ -685,10 +724,10 @@ class _PosterHoverOverlay extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Ano + Estrelas + Nota numérica — larger on hover
+                  // Ano + Estrelas + Nota  — hide year on mobile
                   Row(
                     children: [
-                      if (anime.year != null) ...[
+                      if (anime.year != null && !isMobile) ...[
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 2),

@@ -1,0 +1,659 @@
+From f50a6828e276d0223757f4d5fd237d5ba684db9e Mon Sep 17 00:00:00 2001
+From: JoaoMateus66 <ra867618@ucdb.br>
+Date: Thu, 12 Mar 2026 18:08:37 -0400
+Subject: [PATCH] perf(frontend): heavy optimization pass for weak
+ mobile/desktop devices
+
+- Auto-scroll reduced from 30fps to 20fps (50ms interval, 5px/tick)
+- Skip perspective calculations on mobile in both carousels
+- Replace UpscalableHeroImage with ProxiedImage (removes POST /api/images/upscale, saves RAM + network)
+- Merge 3 stacked DecoratedBox gradients into single CustomPaint in FeaturedOverlay
+- ShimmerBox: AnimatedBuilder+Container  CustomPainter (avoids new BoxDecoration/LinearGradient objects per frame)
+- MiniPosterCard hover scale reduced from 1.45x to 1.25x
+- Replace AnimatedContainer+Clip.antiAlias with ClipRRect+Clip.hardEdge in PosterCard/MiniPosterCard
+- Replace AnimatedContainer with DecoratedBox+SizedBox in NavArrowButton and CarouselArrow
+- Remove boxShadow from play icons in carousels (expensive GPU blur)
+- Reduce boxShadow in AnimeCardHover (blur 106, remove when not hovered)
+- TranslatableText: AnimatedSwitcher 300ms150ms, replace shimmer gradient overlay with tiny spinner
+- FadeTransition(AlwaysStoppedAnimation) replaces AnimatedOpacity in section_row perspective
+- addAutomaticKeepAlives: false in MyListPage SliverGrid
+---
+ .../lib/core/widgets/anime_card_hover.dart    |  14 +-
+ .../lib/core/widgets/shimmer_box.dart         |  71 +++++++---
+ .../lib/core/widgets/translatable_text.dart   |  31 ++---
+ .../details/presentation/details_page.dart    |   5 +-
+ .../home/widgets/featured_section.dart        | 106 ++++++++-------
+ .../features/home/widgets/hero_banner.dart    |   6 +-
+ .../features/home/widgets/mini_carousel.dart  |  38 +++---
+ .../features/home/widgets/section_row.dart    | 128 +++++++++---------
+ .../presentation/my_list_page.dart            |   1 +
+ 9 files changed, 215 insertions(+), 185 deletions(-)
+
+diff --git a/Frontend/EverAnimes-Flutter_FrontEnd/lib/core/widgets/anime_card_hover.dart b/Frontend/EverAnimes-Flutter_FrontEnd/lib/core/widgets/anime_card_hover.dart
+index 60d7db2..3174e6d 100644
+--- a/Frontend/EverAnimes-Flutter_FrontEnd/lib/core/widgets/anime_card_hover.dart
++++ b/Frontend/EverAnimes-Flutter_FrontEnd/lib/core/widgets/anime_card_hover.dart
+@@ -53,18 +53,12 @@ class _AnimeCardHoverState extends State<AnimeCardHover> {
+             boxShadow: _hovered
+                 ? [
+                     BoxShadow(
+-                      color: Colors.black.withValues(alpha: 0.5),
+-                      blurRadius: 10,
+-                      offset: const Offset(0, 6),
++                      color: Colors.black.withValues(alpha: 0.4),
++                      blurRadius: 6,
++                      offset: const Offset(0, 4),
+                     ),
+                   ]
+-                : [
+-                    BoxShadow(
+-                      color: Colors.black.withValues(alpha: 0.2),
+-                      blurRadius: 4,
+-                      offset: const Offset(0, 2),
+-                    ),
+-                  ],
++                : null,
+           ),
+           child: ClipRRect(
+             borderRadius: BorderRadius.circular(AppRadius.card),
+diff --git a/Frontend/EverAnimes-Flutter_FrontEnd/lib/core/widgets/shimmer_box.dart b/Frontend/EverAnimes-Flutter_FrontEnd/lib/core/widgets/shimmer_box.dart
+index 7d26619..bc1555c 100644
+--- a/Frontend/EverAnimes-Flutter_FrontEnd/lib/core/widgets/shimmer_box.dart
++++ b/Frontend/EverAnimes-Flutter_FrontEnd/lib/core/widgets/shimmer_box.dart
+@@ -46,25 +46,62 @@ class _ShimmerBoxState extends State<ShimmerBox>
+ 
+     // RepaintBoundary prevents the shimmer animation (rebuilds every frame)
+     // from cascading dirty-paint flags up to parent widgets.
++    // CustomPaint avoids creating new BoxDecoration/LinearGradient objects
++    // every animation frame — the painter reuses the same object and only
++    // repaints via the Listenable animation (no widget rebuild needed).
+     return RepaintBoundary(
+-      child: AnimatedBuilder(
+-        animation: _controller,
+-        builder: (context, child) {
+-          return Container(
+-            width: widget.width,
+-            height: widget.height,
+-            decoration: BoxDecoration(
+-              borderRadius: BorderRadius.circular(widget.borderRadius),
+-              gradient: LinearGradient(
+-                begin: Alignment(-1.0 + 2.0 * _controller.value, 0),
+-                end: Alignment(-1.0 + 2.0 * _controller.value + 1, 0),
+-                colors: [baseColor, highlightColor, baseColor],
+-                stops: const [0.0, 0.5, 1.0],
+-              ),
+-            ),
+-          );
+-        },
++      child: SizedBox(
++        width: widget.width,
++        height: widget.height,
++        child: CustomPaint(
++          painter: _ShimmerPainter(
++            animation: _controller,
++            baseColor: baseColor,
++            highlightColor: highlightColor,
++            borderRadius: widget.borderRadius,
++          ),
++        ),
+       ),
+     );
+   }
+ }
++
++/// CustomPainter that avoids creating new Gradient / BoxDecoration objects
++/// every frame. Listens to the animation directly — Flutter calls paint()
++/// without rebuilding any widget tree.
++class _ShimmerPainter extends CustomPainter {
++  _ShimmerPainter({
++    required Animation<double> animation,
++    required this.baseColor,
++    required this.highlightColor,
++    required this.borderRadius,
++  }) : super(repaint: animation),
++       _animation = animation;
++
++  final Animation<double> _animation;
++  final Color baseColor;
++  final Color highlightColor;
++  final double borderRadius;
++
++  @override
++  void paint(Canvas canvas, Size size) {
++    final rect = Offset.zero & size;
++    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(borderRadius));
++
++    final gradient = LinearGradient(
++      begin: Alignment(-1.0 + 2.0 * _animation.value, 0),
++      end: Alignment(-1.0 + 2.0 * _animation.value + 1, 0),
++      colors: [baseColor, highlightColor, baseColor],
++      stops: const [0.0, 0.5, 1.0],
++    );
++
++    final paint = Paint()..shader = gradient.createShader(rect);
++    canvas.drawRRect(rrect, paint);
++  }
++
++  @override
++  bool shouldRepaint(_ShimmerPainter old) =>
++      old.baseColor != baseColor ||
++      old.highlightColor != highlightColor ||
++      old.borderRadius != borderRadius;
++}
+diff --git a/Frontend/EverAnimes-Flutter_FrontEnd/lib/core/widgets/translatable_text.dart b/Frontend/EverAnimes-Flutter_FrontEnd/lib/core/widgets/translatable_text.dart
+index 4b8aa58..6a742e9 100644
+--- a/Frontend/EverAnimes-Flutter_FrontEnd/lib/core/widgets/translatable_text.dart
++++ b/Frontend/EverAnimes-Flutter_FrontEnd/lib/core/widgets/translatable_text.dart
+@@ -134,7 +134,7 @@ class _TranslatableTextState extends ConsumerState<TranslatableText> {
+       children: [
+         // Texto principal — sempre visível.
+         AnimatedSwitcher(
+-          duration: const Duration(milliseconds: 300),
++          duration: const Duration(milliseconds: 150),
+           child: widget.selectable
+               ? SelectableText(
+                   displayText,
+@@ -153,25 +153,20 @@ class _TranslatableTextState extends ConsumerState<TranslatableText> {
+                 ),
+         ),
+ 
+-        // Loading shimmer overlay — sutil sobre o texto.
++        // Lightweight loading indicator — simple opacity pulse instead of
++        // shimmer gradient overlay (saves a Positioned.fill + DecoratedBox
++        // with LinearGradient being composited every frame).
+         if (_loading)
+-          Positioned.fill(
++          Positioned(
++            right: 0,
++            top: 0,
+             child: IgnorePointer(
+-              child: AnimatedOpacity(
+-                opacity: _loading ? 0.35 : 0.0,
+-                duration: const Duration(milliseconds: 200),
+-                child: const DecoratedBox(
+-                  decoration: BoxDecoration(
+-                    borderRadius: BorderRadius.all(
+-                        Radius.circular(AppRadius.card)),
+-                    gradient: LinearGradient(
+-                      colors: [
+-                        Color(0x00FFFFFF),
+-                        Color(0x22FFFFFF),
+-                        Color(0x00FFFFFF),
+-                      ],
+-                    ),
+-                  ),
++              child: SizedBox(
++                width: 10,
++                height: 10,
++                child: CircularProgressIndicator(
++                  strokeWidth: 1.0,
++                  color: Colors.white.withValues(alpha: 0.30),
+                 ),
+               ),
+             ),
+diff --git a/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/details/presentation/details_page.dart b/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/details/presentation/details_page.dart
+index 0dd41fc..b1d0fad 100644
+--- a/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/details/presentation/details_page.dart
++++ b/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/details/presentation/details_page.dart
+@@ -6,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
+ import '../../../l10n/app_localizations.dart';
+ import '../../../core/theme/app_tokens.dart';
+ import '../../../core/utils/proxied_image.dart';
+-import '../../../core/widgets/upscalable_hero_image.dart';
+ import '../../../core/widgets/translatable_text.dart';
+ import '../../../widgets/top_header.dart';
+ import '../../../core/widgets/error_view.dart';
+@@ -195,8 +194,8 @@ class _DetailsHeroBackground extends StatelessWidget {
+           if (coverUrl != null)
+             Hero(
+               tag: heroTag,
+-              child: UpscalableHeroImage(
+-                imageUrl: coverUrl!,
++              child: ProxiedImage(
++                src: coverUrl!,
+                 fit: BoxFit.cover,
+                 errorBuilder: (ctx, err, _) => Container(
+                   color: AppColors.surface,
+diff --git a/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/featured_section.dart b/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/featured_section.dart
+index acee116..a117ac6 100644
+--- a/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/featured_section.dart
++++ b/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/featured_section.dart
+@@ -6,7 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
+ 
+ import '../../../core/data/dtos/anime_item_dto.dart';
+ import '../../../core/theme/app_tokens.dart';
+-import '../../../core/widgets/upscalable_hero_image.dart';
++import '../../../core/utils/proxied_image.dart';
+ import '../../../features/details/presentation/details_providers.dart';
+ import '../../../features/details/presentation/video_embed_helper.dart';
+ import '../../../l10n/app_localizations.dart';
+@@ -309,8 +309,8 @@ class _FeaturedBackgroundImage extends StatelessWidget {
+     final dpr = mq.devicePixelRatio.clamp(1.0, 3.0);
+     final decodeWidth = (mq.size.width * dpr).toInt();
+ 
+-    return UpscalableHeroImage(
+-      imageUrl: coverUrl,
++    return ProxiedImage(
++      src: coverUrl,
+       fit: BoxFit.cover,
+       cacheWidth: decodeWidth,
+       errorBuilder: (ctx, err, st) =>
+@@ -328,47 +328,56 @@ class _FeaturedOverlay extends StatelessWidget {
+ 
+   @override
+   Widget build(BuildContext context) {
+-    return Stack(
+-      fit: StackFit.expand,
+-      children: [
+-        // Gradiente inferior
+-        const DecoratedBox(
+-          decoration: BoxDecoration(
+-            gradient: LinearGradient(
+-              begin: Alignment.topCenter,
+-              end: Alignment.bottomCenter,
+-              stops: [0.25, 1.0],
+-              colors: [Color(0x00000000), Color(0xD9000000)],
+-            ),
+-          ),
+-        ),
+-        // Gradiente lateral esquerdo (painel de info)
+-        const DecoratedBox(
+-          decoration: BoxDecoration(
+-            gradient: LinearGradient(
+-              begin: Alignment.centerLeft,
+-              end: Alignment.centerRight,
+-              stops: [0.0, 0.65],
+-              colors: [Color(0xFF000000), Color(0x00000000)],
+-            ),
+-          ),
+-        ),
+-        // Gradiente lateral direito (menu lateral)
+-        const DecoratedBox(
+-          decoration: BoxDecoration(
+-            gradient: LinearGradient(
+-              begin: Alignment.centerRight,
+-              end: Alignment.centerLeft,
+-              stops: [0.0, 0.35],
+-              colors: [Color(0xB3000000), Color(0x00000000)],
+-            ),
+-          ),
+-        ),
+-      ],
++    // Single CustomPaint replaces 3 stacked DecoratedBox widgets.
++    // This avoids 3 full-size gradient layers being composited separately.
++    return CustomPaint(
++      painter: const _FeaturedOverlayPainter(),
++      child: const SizedBox.expand(),
+     );
+   }
+ }
+ 
++/// Paints the three featured-section gradients in a single paint call
++/// instead of stacking three DecoratedBox layers.
++class _FeaturedOverlayPainter extends CustomPainter {
++  const _FeaturedOverlayPainter();
++
++  @override
++  void paint(Canvas canvas, Size size) {
++    final rect = Offset.zero & size;
++
++    // 1) Bottom gradient (vertical)
++    final bottomGrad = const LinearGradient(
++      begin: Alignment.topCenter,
++      end: Alignment.bottomCenter,
++      stops: [0.25, 1.0],
++      colors: [Color(0x00000000), Color(0xD9000000)],
++    ).createShader(rect);
++    canvas.drawRect(rect, Paint()..shader = bottomGrad);
++
++    // 2) Left gradient (horizontal)
++    final leftGrad = const LinearGradient(
++      begin: Alignment.centerLeft,
++      end: Alignment.centerRight,
++      stops: [0.0, 0.65],
++      colors: [Color(0xFF000000), Color(0x00000000)],
++    ).createShader(rect);
++    canvas.drawRect(rect, Paint()..shader = leftGrad);
++
++    // 3) Right gradient (horizontal)
++    final rightGrad = const LinearGradient(
++      begin: Alignment.centerRight,
++      end: Alignment.centerLeft,
++      stops: [0.0, 0.35],
++      colors: [Color(0xB3000000), Color(0x00000000)],
++    ).createShader(rect);
++    canvas.drawRect(rect, Paint()..shader = rightGrad);
++  }
++
++  @override
++  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
++}
++
+ // ─────────────────────────────────────────────────────────────────────────────
+ // 6-C FeaturedInfoPanel
+ // ─────────────────────────────────────────────────────────────────────────────
+@@ -745,10 +754,7 @@ class _CarouselArrowState extends State<_CarouselArrow> {
+       cursor: SystemMouseCursors.click,
+       child: GestureDetector(
+         onTap: widget.onTap,
+-        child: AnimatedContainer(
+-          duration: const Duration(milliseconds: 180),
+-          width: 40,
+-          height: 40,
++        child: DecoratedBox(
+           decoration: BoxDecoration(
+             shape: BoxShape.circle,
+             color: _hovered
+@@ -760,10 +766,14 @@ class _CarouselArrowState extends State<_CarouselArrow> {
+                   : AppColors.textSecondary.withValues(alpha: 0.4),
+             ),
+           ),
+-          child: Icon(
+-            widget.icon,
+-            size: 24,
+-            color: AppColors.textPrimary,
++          child: SizedBox(
++            width: 40,
++            height: 40,
++            child: Icon(
++              widget.icon,
++              size: 24,
++              color: AppColors.textPrimary,
++            ),
+           ),
+         ),
+       ),
+diff --git a/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/hero_banner.dart b/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/hero_banner.dart
+index feee62f..94df6c5 100644
+--- a/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/hero_banner.dart
++++ b/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/hero_banner.dart
+@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
+ 
+ import '../../../core/data/dtos/anime_item_dto.dart';
+ import '../../../core/theme/app_tokens.dart';
+-import '../../../core/widgets/upscalable_hero_image.dart';
++import '../../../core/utils/proxied_image.dart';
+ import '../../../l10n/app_localizations.dart';
+ import '../../auth/domain/auth_state_provider.dart';
+ import '../../details/data/dtos/anime_details_dto.dart';
+@@ -185,8 +185,8 @@ class _HeroBackgroundImage extends StatelessWidget {
+     final dpr = mq.devicePixelRatio.clamp(1.0, 3.0);
+     final decodeWidth = (mq.size.width * dpr).toInt();
+ 
+-    return UpscalableHeroImage(
+-      imageUrl: coverUrl,
++    return ProxiedImage(
++      src: coverUrl,
+       fit: BoxFit.cover,
+       width: double.infinity,
+       height: double.infinity,
+diff --git a/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/mini_carousel.dart b/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/mini_carousel.dart
+index d93c065..852b19d 100644
+--- a/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/mini_carousel.dart
++++ b/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/mini_carousel.dart
+@@ -187,8 +187,8 @@ class _MiniCarouselStripState extends State<_MiniCarouselStrip> {
+           final itemStride = cardSz + AppSpacing.xs;
+           final contentWidth =
+               widget.items.length * itemStride - AppSpacing.xs;
+-          // expandPad: (1.45−1)/2 × cardSz + folga
+-          final kExpandPad = cardSz * 0.25;
++          // expandPad: (1.25−1)/2 × cardSz + folga
++          final kExpandPad = cardSz * 0.15;
+           return SizedBox(
+             height: cardSz,
+             child: Stack(
+@@ -213,10 +213,19 @@ class _MiniCarouselStripState extends State<_MiniCarouselStrip> {
+                       builder: (ctx, _) {
+                         final scrollOffset =
+                             _scroll.hasClients ? _scroll.offset : 0.0;
++                        final isMobile = viewW < 600;
+ 
+                         // Gera dados de perspectiva para cada card
++                        // Skip perspective on mobile — saves per-card math.
+                         final cardData =
+                             List.generate(widget.items.length, (index) {
++                          if (isMobile) {
++                            return (
++                              index: index,
++                              scale: 1.0,
++                              opacity: 1.0,
++                            );
++                          }
+                           final cardCenterX = AppSpacing.md +
+                               index * itemStride +
+                               cardSz / 2 -
+@@ -376,20 +385,18 @@ class _MiniPosterCardState extends State<MiniPosterCard> {
+             context.push('/anime/${widget.anime.source}/$id');
+           },
+           child: AnimatedScale(
+-            scale: _hovered ? 1.45 : 1.0,
+-            duration: const Duration(milliseconds: 200),
++            scale: _hovered ? 1.25 : 1.0,
++            duration: const Duration(milliseconds: 180),
+             curve: Curves.easeOutCubic,
+             child: SizedBox(
+               width: widget.cardSize,
+               height: widget.cardSize,
+-              child: AnimatedContainer(
+-                duration: const Duration(milliseconds: 200),
+-                curve: Curves.easeOutCubic,
+-                clipBehavior: Clip.antiAlias,
+-                decoration: BoxDecoration(
+-                  borderRadius: BorderRadius.circular(
+-                      _hovered ? AppRadius.card : 0),
+-                ),
++              // Use ClipRRect with Clip.hardEdge instead of
++              // AnimatedContainer with Clip.antiAlias — cheaper on GPU.
++              child: ClipRRect(
++                clipBehavior: Clip.hardEdge,
++                borderRadius: BorderRadius.circular(
++                    _hovered ? AppRadius.card : 0),
+                 child: Stack(
+                   fit: StackFit.expand,
+                   children: [
+@@ -470,13 +477,6 @@ class _MiniPosterCardState extends State<MiniPosterCard> {
+                                           .withValues(alpha: 0.88),
+                                       width: 1.5,
+                                     ),
+-                                    boxShadow: [
+-                                      BoxShadow(
+-                                        color: Colors.black
+-                                            .withValues(alpha: 0.4),
+-                                        blurRadius: 8,
+-                                      ),
+-                                    ],
+                                   ),
+                                   child: const Icon(
+                                     Icons.play_arrow_rounded,
+diff --git a/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/section_row.dart b/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/section_row.dart
+index 09ad17f..ca5cc73 100644
+--- a/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/section_row.dart
++++ b/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/home/widgets/section_row.dart
+@@ -142,11 +142,12 @@ class _HorizontalPosterListState extends State<HorizontalPosterList> {
+   bool _isMobile = false;
+ 
+   /// Velocidade do auto-scroll: pixels por tick.
+-  /// Doubled to compensate for the lower tick rate (30 fps instead of 60).
+-  static const double _autoScrollSpeed = 4.0;
++  /// Increased to compensate for the lower tick rate (~20 fps).
++  static const double _autoScrollSpeed = 5.0;
+ 
+-  /// Intervalo do tick (~30 fps — suficiente para scroll suave e reduz CPU).
+-  static const Duration _autoScrollInterval = Duration(milliseconds: 32);
++  /// Intervalo do tick (~20 fps — suficiente para scroll suave, reduz CPU 
++  /// significativamente vs 60fps original).
++  static const Duration _autoScrollInterval = Duration(milliseconds: 50);
+ 
+   @override
+   void initState() {
+@@ -268,20 +269,21 @@ class _HorizontalPosterListState extends State<HorizontalPosterList> {
+                             final isHov = index == _hoveredIndex;
+                             final normalLeft =
+                                 AppSpacing.md + index * stride;
+-                            final centerX = normalLeft +
+-                                pW / 2 -
+-                                scrollOff;
+-                            final dist =
+-                                (centerX - viewW / 2).abs();
+-                            final norm = dist / (viewW * 0.46);
+-
+-                            // Perspectiva não se aplica ao card hovado
+-                            final perspScale = isHov
+-                                ? 1.0
+-                                : _lerpClamp(1.0, 0.72, norm);
+-                            final perspOpacity = isHov
+-                                ? 1.0
+-                                : _lerpClamp(1.0, 0.40, norm);
++
++                            // Skip perspective on mobile — saves heavy
++                            // per-card-per-frame math on weak devices.
++                            double perspScale = 1.0;
++                            double perspOpacity = 1.0;
++                            if (!_isMobile && !isHov) {
++                              final centerX = normalLeft +
++                                  pW / 2 -
++                                  scrollOff;
++                              final dist =
++                                  (centerX - viewW / 2).abs();
++                              final norm = dist / (viewW * 0.46);
++                              perspScale = _lerpClamp(1.0, 0.72, norm);
++                              perspOpacity = _lerpClamp(1.0, 0.40, norm);
++                            }
+ 
+                             // Hover: 1.7× largura, 1.25× altura
+                             final tw = isHov
+@@ -306,11 +308,9 @@ class _HorizontalPosterListState extends State<HorizontalPosterList> {
+                               width: tw,
+                               height: th,
+                               child: RepaintBoundary(
+-                                child: AnimatedOpacity(
+-                                  duration: const Duration(
+-                                      milliseconds: 220),
+-                                  curve: Curves.easeOutCubic,
+-                                  opacity: perspOpacity,
++                                child: FadeTransition(
++                                  opacity: AlwaysStoppedAnimation(
++                                      perspOpacity),
+                                   child: PosterCard(
+                                     anime: widget.items[index],
+                                     onHoverChanged: (hovered) {
+@@ -458,15 +458,12 @@ class _PosterCardState extends State<PosterCard> {
+             final id = widget.anime.externalId ?? '${widget.anime.id}';
+             context.push('/anime/${widget.anime.source}/$id');
+           },
+-          // AnimatedContainer aplica border-radius suave so no hover
+-          child: AnimatedContainer(
+-            duration: const Duration(milliseconds: 220),
+-            curve: Curves.easeOutCubic,
+-            clipBehavior: Clip.antiAlias,
+-            decoration: BoxDecoration(
+-              borderRadius:
+-                  BorderRadius.circular(_hovered ? 6.0 : 0.0),
+-            ),
++          // ClipRRect with Clip.hardEdge instead of AnimatedContainer
++          // — avoids implicit animation overhead and uses cheaper clipping.
++          child: ClipRRect(
++            clipBehavior: Clip.hardEdge,
++            borderRadius:
++                BorderRadius.circular(_hovered ? 6.0 : 0.0),
+             child: Stack(
+               fit: StackFit.expand,
+               clipBehavior: Clip.none,
+@@ -661,12 +658,6 @@ class _PosterHoverOverlay extends StatelessWidget {
+                     color: Colors.white.withValues(alpha: 0.88),
+                     width: 1.5,
+                   ),
+-                  boxShadow: [
+-                    BoxShadow(
+-                      color: Colors.black.withValues(alpha: 0.45),
+-                      blurRadius: 12,
+-                    ),
+-                  ],
+                 ),
+                 child: const Icon(
+                   Icons.play_arrow_rounded,
+@@ -776,37 +767,40 @@ class _NavArrowButtonState extends State<NavArrowButton> {
+       onExit: (_) => setState(() => _hovered = false),
+       child: GestureDetector(
+         onTap: widget.onPressed,
+-        child: AnimatedContainer(
+-          duration: const Duration(milliseconds: 180),
++        // Use DecoratedBox + SizedBox instead of AnimatedContainer
++        // to avoid implicit animation cost on every hover toggle.
++        child: SizedBox(
+           width: 64,
+-          decoration: BoxDecoration(
+-            color: widget.transparent
+-                ? Colors.transparent
+-                : (_hovered
+-                    ? Colors.black.withValues(alpha: 0.20)
+-                    : Colors.black.withValues(alpha: 0.05)),
+-            borderRadius: BorderRadius.only(
+-              topLeft: isLeft
+-                  ? const Radius.circular(AppRadius.card)
+-                  : Radius.zero,
+-              bottomLeft: isLeft
+-                  ? const Radius.circular(AppRadius.card)
+-                  : Radius.zero,
+-              topRight: isLeft
+-                  ? Radius.zero
+-                  : const Radius.circular(AppRadius.card),
+-              bottomRight: isLeft
+-                  ? Radius.zero
+-                  : const Radius.circular(AppRadius.card),
++          child: DecoratedBox(
++            decoration: BoxDecoration(
++              color: widget.transparent
++                  ? Colors.transparent
++                  : (_hovered
++                      ? Colors.black.withValues(alpha: 0.20)
++                      : Colors.black.withValues(alpha: 0.05)),
++              borderRadius: BorderRadius.only(
++                topLeft: isLeft
++                    ? const Radius.circular(AppRadius.card)
++                    : Radius.zero,
++                bottomLeft: isLeft
++                    ? const Radius.circular(AppRadius.card)
++                    : Radius.zero,
++                topRight: isLeft
++                    ? Radius.zero
++                    : const Radius.circular(AppRadius.card),
++                bottomRight: isLeft
++                    ? Radius.zero
++                    : const Radius.circular(AppRadius.card),
++              ),
+             ),
+-          ),
+-          child: Center(
+-            child: Icon(
+-              isLeft
+-                  ? Icons.chevron_left_rounded
+-                  : Icons.chevron_right_rounded,
+-              color: Colors.white.withValues(alpha: _hovered ? 1.0 : 0.75),
+-              size: 36,
++            child: Center(
++              child: Icon(
++                isLeft
++                    ? Icons.chevron_left_rounded
++                    : Icons.chevron_right_rounded,
++                color: Colors.white.withValues(alpha: _hovered ? 1.0 : 0.75),
++                size: 36,
++              ),
+             ),
+           ),
+         ),
+diff --git a/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/user_animes/presentation/my_list_page.dart b/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/user_animes/presentation/my_list_page.dart
+index cff0f01..d8a08ab 100644
+--- a/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/user_animes/presentation/my_list_page.dart
++++ b/Frontend/EverAnimes-Flutter_FrontEnd/lib/features/user_animes/presentation/my_list_page.dart
+@@ -628,6 +628,7 @@ class _MyListPageState extends ConsumerState<MyListPage> {
+                     );
+                   },
+                   childCount: filtered.length,
++                  addAutomaticKeepAlives: false,
+                 ),
+               ),
+             ),
+-- 
+2.53.0.windows.1
+
