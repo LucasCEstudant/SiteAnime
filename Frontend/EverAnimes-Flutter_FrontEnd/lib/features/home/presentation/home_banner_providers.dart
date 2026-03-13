@@ -139,12 +139,13 @@ final resolvedSecondaryBannersProvider =
   // Pega todos que NÃO sejam home-primary (secundários, terciários, etc.)
   final secondaries =
       banners.where((b) => b.slot != 'home-primary').toList();
-  final resolved = <ResolvedBanner>[];
-  for (final banner in secondaries) {
-    final r = await _resolveBanner(ref, banner, cacheBustVersion: cbVersion);
-    if (r != null) resolved.add(r);
-  }
-  return resolved;
+  // Resolve todos os banners secundários em paralelo (Future.wait) em vez de
+  // aguardar cada um sequencialmente — reduz o tempo total para o max do mais
+  // lento em vez da soma de todos.
+  final results = await Future.wait(
+    secondaries.map((b) => _resolveBanner(ref, b, cacheBustVersion: cbVersion)),
+  );
+  return results.whereType<ResolvedBanner>().toList();
 });
 
 /// Provider combinado para o HeroBanner.

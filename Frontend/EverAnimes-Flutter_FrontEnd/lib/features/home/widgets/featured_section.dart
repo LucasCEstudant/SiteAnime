@@ -47,6 +47,9 @@ class _FeaturedExpandedSectionState
   bool _hovering = false;
   bool _userInteracted = false;
   Timer? _autoPlayTimer;
+  /// Guarda a última quantidade de itens usada para iniciar o auto-play.
+  /// O timer só é reiniciado quando o count muda — evita restart a cada rebuild.
+  int? _lastAutoPlayCount;
   final PageController _pageController = PageController();
 
   @override
@@ -111,10 +114,14 @@ class _FeaturedExpandedSectionState
   }
 
   Widget _buildCarousel(List<AnimeItemDto> animes) {
-    // Garante auto-play ativo
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _startAutoPlay(animes.length);
-    });
+    // Reinicia o timer apenas quando o número de itens muda (primeiro render
+    // incluído). Evita cancelar + recriar o timer em cada rebuild desnecessário.
+    if (_lastAutoPlayCount != animes.length) {
+      _lastAutoPlayCount = animes.length;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _startAutoPlay(animes.length);
+      });
+    }
 
     final isMobile = AppBreakpoints.isMobile(context);
     final sectionHeight = isMobile ? 350.0 : _kFeaturedHeight;

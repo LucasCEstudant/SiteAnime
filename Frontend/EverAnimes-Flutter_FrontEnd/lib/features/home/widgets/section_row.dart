@@ -129,7 +129,8 @@ class HorizontalPosterList extends StatefulWidget {
   State<HorizontalPosterList> createState() => _HorizontalPosterListState();
 }
 
-class _HorizontalPosterListState extends State<HorizontalPosterList> {
+class _HorizontalPosterListState extends State<HorizontalPosterList>
+    with WidgetsBindingObserver {
   final ScrollController _scroll = ScrollController();
   bool _hovered = false;
   int? _hoveredIndex;
@@ -152,16 +153,43 @@ class _HorizontalPosterListState extends State<HorizontalPosterList> {
   void initState() {
     super.initState();
     _scroll.addListener(_updateArrows);
-    // O timer inicia, mas só produz efeito em desktop (verificado no tick).
+    WidgetsBinding.instance.addObserver(this);
+    // O timer só inicia em desktop; _setMobile() o cancela quando necessário.
     _startAutoScroll();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _autoScrollTimer?.cancel();
     _scroll.removeListener(_updateArrows);
     _scroll.dispose();
     super.dispose();
+  }
+
+  /// Pausa o timer quando o app vai para segundo plano (aba escondida no web,
+  /// app minimizado em mobile) e retoma quando volta ao foco.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (!_isMobile) _startAutoScroll();
+    } else {
+      _autoScrollTimer?.cancel();
+      _autoScrollTimer = null;
+    }
+  }
+
+  /// Cancela ou inicia o timer conforme a plataforma muda (ex: redimensionamento
+  /// que coloca/retira o layout do modo mobile).
+  void _setMobile(bool isMobile) {
+    if (_isMobile == isMobile) return;
+    _isMobile = isMobile;
+    if (_isMobile) {
+      _autoScrollTimer?.cancel();
+      _autoScrollTimer = null;
+    } else {
+      _startAutoScroll();
+    }
   }
 
   void _startAutoScroll() {
@@ -220,7 +248,7 @@ class _HorizontalPosterListState extends State<HorizontalPosterList> {
       child: LayoutBuilder(
         builder: (ctx, constraints) {
           final viewW = constraints.maxWidth;
-          _isMobile = viewW < AppBreakpoints.mobile;
+          _setMobile(viewW < AppBreakpoints.mobile);
           final vignetteW = _isMobile ? 32.0 : 80.0;
           final pW = _posterW(viewW);
           final pH = _posterH(viewW);
