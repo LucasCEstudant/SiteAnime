@@ -41,21 +41,29 @@ class HeroBanner extends ConsumerWidget {
     // como fallback se o banner estiver ausente — evita chamada desnecessária
     // a GET /api/animes quando o banner está configurado.
     final asyncAnime = ref.watch(heroAnimeProvider);
+    final isMobile = AppBreakpoints.isMobile(context);
 
+    final heroChild = SizedBox(
+      height: heroHeight,
+      width: double.infinity,
+      child: asyncAnime.when(
+        loading: () => const HeroBannerSkeleton(),
+        error: (_, _) => const HeroBannerSkeleton(),
+        data: (anime) {
+          if (anime == null) return const HeroBannerSkeleton();
+          return _HeroContent(anime: anime, heroHeight: heroHeight);
+        },
+      ),
+    );
+
+    // ClipPath força compositing do layer inteiro do hero a cada frame —
+    // equivalente a saveLayer, custo alto em GPUs móveis fracas.
+    // No mobile removemos o clip; o arco decorativo não é perceptível
+    // em telas pequenas e o ganho de fluidez é significativo.
+    if (isMobile) return heroChild;
     return ClipPath(
       clipper: const _HeroArcClipper(),
-      child: SizedBox(
-        height: heroHeight,
-        width: double.infinity,
-        child: asyncAnime.when(
-          loading: () => const HeroBannerSkeleton(),
-          error: (_, _) => const HeroBannerSkeleton(),
-          data: (anime) {
-            if (anime == null) return const HeroBannerSkeleton();
-            return _HeroContent(anime: anime, heroHeight: heroHeight);
-          },
-        ),
-      ),
+      child: heroChild,
     );
   }
 }

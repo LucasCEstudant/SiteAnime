@@ -189,6 +189,34 @@ class _MiniCarouselStripState extends State<_MiniCarouselStrip> {
               widget.items.length * itemStride - AppSpacing.xs;
           // expandPad: (1.25−1)/2 × cardSz + folga
           final kExpandPad = cardSz * 0.15;
+
+          // ── Caminho mobile: ListView.builder (virtualizado) ────────────
+          // Evita o AnimatedBuilder que rebuilda todos os N cards a cada pixel
+          // de scroll. ListView.builder virtualiza e só constrói cards visíveis.
+          if (AppBreakpoints.isMobile(ctx)) {
+            return SizedBox(
+              height: cardSz,
+              child: ListView.builder(
+                controller: _scroll,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md),
+                itemCount: widget.items.length,
+                itemExtent: itemStride,
+                itemBuilder: (buildCtx, i) {
+                  final item = widget.items[i];
+                  return RepaintBoundary(
+                    child: MiniPosterCard(
+                      anime: item,
+                      cardSize: cardSz,
+                      onHoverChanged: null,
+                    ),
+                  );
+                },
+              ),
+            );
+          }
+
           return SizedBox(
             height: cardSz,
             child: Stack(

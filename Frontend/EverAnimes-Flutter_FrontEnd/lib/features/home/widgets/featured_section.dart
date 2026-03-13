@@ -282,18 +282,21 @@ class _FeaturedContent extends StatelessWidget {
               ),
             ),
 
-          // ── 6-E Side Menu (right column — both mobile and desktop) ──
-          Positioned(
-            right: 0,
-            top: 0,
-            bottom: 0,
-            child: _FeaturedSideMenu(
-              anime: anime,
-              activeTab: activeTab,
-              onTabChange: onTabChange,
-              compact: isMobile,
+          // ── 6-E Side Menu (right column — apenas desktop) ───────────
+          // No mobile: ocultado para eliminar 4 StatefulWidgets com
+          // AnimatedContainer que nunca são utilizados em touch screens.
+          if (!isMobile)
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              child: _FeaturedSideMenu(
+                anime: anime,
+                activeTab: activeTab,
+                onTabChange: onTabChange,
+                compact: false,
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -401,6 +404,9 @@ class _FeaturedInfoPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // No mobile: evita N chamadas imediatas à API de detalhes
+    // (synopsis/episódios) para cada banner do carousel na home.
+    final isMobile = AppBreakpoints.isMobile(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
@@ -475,10 +481,13 @@ class _FeaturedInfoPanel extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.md),
 
-            // Conteúdo da aba ativa
-            _TabContent(anime: anime, tab: activeTab),
-
-            const SizedBox(height: AppSpacing.lg),
+            // Conteúdo da aba ativa — apenas desktop.
+            // No mobile: evita N chamadas imediatas à API de detalhes
+            // (synopsis, episódios) que ocorrem ao montar o carousel.
+            if (!isMobile) ...[  
+              _TabContent(anime: anime, tab: activeTab),
+              const SizedBox(height: AppSpacing.lg),
+            ],
 
             // Botões de ação
             Row(

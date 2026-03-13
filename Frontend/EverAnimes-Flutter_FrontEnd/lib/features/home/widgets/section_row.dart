@@ -261,6 +261,34 @@ class _HorizontalPosterListState extends State<HorizontalPosterList>
           // Headroom vertical: 30% extra para a expansão de 25% para cima/baixo
           final outerH = pH * 1.30;
 
+          // ── Caminho mobile: ListView.builder (virtualizado) ────────────
+          // Evita o AnimatedBuilder que rebuilda TODOS os N cards a cada pixel
+          // de scroll. ListView.builder só constrói os cards visíveis (~5-6),
+          // reduzindo drasticamente o trabalho de layout no mobile.
+          if (_isMobile) {
+            return SizedBox(
+              height: pH,
+              child: ListView.builder(
+                controller: _scroll,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md),
+                itemCount: count,
+                itemExtent: pW + AppSpacing.xs,
+                itemBuilder: (ctx, i) => SizedBox(
+                  width: pW,
+                  height: pH,
+                  child: RepaintBoundary(
+                    child: PosterCard(
+                      anime: widget.items[i],
+                      onHoverChanged: (_) {},
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+
           return SizedBox(
             height: outerH,
             child: Stack(
