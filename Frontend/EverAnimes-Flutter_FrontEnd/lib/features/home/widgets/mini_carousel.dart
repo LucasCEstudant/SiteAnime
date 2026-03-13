@@ -187,8 +187,8 @@ class _MiniCarouselStripState extends State<_MiniCarouselStrip> {
           final itemStride = cardSz + AppSpacing.xs;
           final contentWidth =
               widget.items.length * itemStride - AppSpacing.xs;
-          // expandPad: (1.45−1)/2 × cardSz + folga
-          final kExpandPad = cardSz * 0.25;
+          // expandPad: (1.25−1)/2 × cardSz + folga
+          final kExpandPad = cardSz * 0.15;
           return SizedBox(
             height: cardSz,
             child: Stack(
@@ -216,6 +216,7 @@ class _MiniCarouselStripState extends State<_MiniCarouselStrip> {
                         final isMobile = AppBreakpoints.isMobile(ctx);
 
                         // Gera dados de perspectiva para cada card
+                        // Skip perspective on mobile — saves per-card math.
                         final cardData =
                             List.generate(widget.items.length, (index) {
                           if (isMobile) {
@@ -392,14 +393,12 @@ class _MiniPosterCardState extends State<MiniPosterCard> {
             child: SizedBox(
               width: widget.cardSize,
               height: widget.cardSize,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(
-                      _hovered ? AppRadius.card : 0),
-                ),
+              // Use ClipRRect with Clip.hardEdge instead of
+              // AnimatedContainer with Clip.antiAlias — cheaper on GPU.
+              child: ClipRRect(
+                clipBehavior: Clip.hardEdge,
+                borderRadius: BorderRadius.circular(
+                    _hovered ? AppRadius.card : 0),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -480,13 +479,6 @@ class _MiniPosterCardState extends State<MiniPosterCard> {
                                           .withValues(alpha: 0.88),
                                       width: 1.5,
                                     ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.4),
-                                        blurRadius: 8,
-                                      ),
-                                    ],
                                   ),
                                   child: const Icon(
                                     Icons.play_arrow_rounded,

@@ -336,45 +336,54 @@ class _FeaturedOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // Gradiente inferior
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              stops: [0.25, 1.0],
-              colors: [Color(0x00000000), Color(0xD9000000)],
-            ),
-          ),
-        ),
-        // Gradiente lateral esquerdo (painel de info)
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              stops: [0.0, 0.65],
-              colors: [Color(0xFF000000), Color(0x00000000)],
-            ),
-          ),
-        ),
-        // Gradiente lateral direito (menu lateral)
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.centerRight,
-              end: Alignment.centerLeft,
-              stops: [0.0, 0.35],
-              colors: [Color(0xB3000000), Color(0x00000000)],
-            ),
-          ),
-        ),
-      ],
+    // Single CustomPaint replaces 3 stacked DecoratedBox widgets.
+    // This avoids 3 full-size gradient layers being composited separately.
+    return CustomPaint(
+      painter: const _FeaturedOverlayPainter(),
+      child: const SizedBox.expand(),
     );
   }
+}
+
+/// Paints the three featured-section gradients in a single paint call
+/// instead of stacking three DecoratedBox layers.
+class _FeaturedOverlayPainter extends CustomPainter {
+  const _FeaturedOverlayPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+
+    // 1) Bottom gradient (vertical)
+    final bottomGrad = const LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      stops: [0.25, 1.0],
+      colors: [Color(0x00000000), Color(0xD9000000)],
+    ).createShader(rect);
+    canvas.drawRect(rect, Paint()..shader = bottomGrad);
+
+    // 2) Left gradient (horizontal)
+    final leftGrad = const LinearGradient(
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+      stops: [0.0, 0.65],
+      colors: [Color(0xFF000000), Color(0x00000000)],
+    ).createShader(rect);
+    canvas.drawRect(rect, Paint()..shader = leftGrad);
+
+    // 3) Right gradient (horizontal)
+    final rightGrad = const LinearGradient(
+      begin: Alignment.centerRight,
+      end: Alignment.centerLeft,
+      stops: [0.0, 0.35],
+      colors: [Color(0xB3000000), Color(0x00000000)],
+    ).createShader(rect);
+    canvas.drawRect(rect, Paint()..shader = rightGrad);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -875,10 +884,7 @@ class _CarouselArrowState extends State<_CarouselArrow> {
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          width: 40,
-          height: 40,
+        child: DecoratedBox(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: _hovered
@@ -890,10 +896,14 @@ class _CarouselArrowState extends State<_CarouselArrow> {
                   : AppColors.textSecondary.withValues(alpha: 0.4),
             ),
           ),
-          child: Icon(
-            widget.icon,
-            size: 24,
-            color: AppColors.textPrimary,
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: Icon(
+              widget.icon,
+              size: 24,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
       ),

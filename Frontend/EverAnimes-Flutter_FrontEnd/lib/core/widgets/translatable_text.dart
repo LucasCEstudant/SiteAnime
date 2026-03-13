@@ -134,7 +134,7 @@ class _TranslatableTextState extends ConsumerState<TranslatableText> {
       children: [
         // Texto principal — sempre visível.
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 150),
           child: widget.selectable
               ? SelectableText(
                   displayText,
@@ -153,25 +153,20 @@ class _TranslatableTextState extends ConsumerState<TranslatableText> {
                 ),
         ),
 
-        // Loading shimmer overlay — sutil sobre o texto.
+        // Lightweight loading indicator — simple opacity pulse instead of
+        // shimmer gradient overlay (saves a Positioned.fill + DecoratedBox
+        // with LinearGradient being composited every frame).
         if (_loading)
-          Positioned.fill(
+          Positioned(
+            right: 0,
+            top: 0,
             child: IgnorePointer(
-              child: AnimatedOpacity(
-                opacity: _loading ? 0.35 : 0.0,
-                duration: const Duration(milliseconds: 200),
-                child: const DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.all(
-                        Radius.circular(AppRadius.card)),
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0x00FFFFFF),
-                        Color(0x22FFFFFF),
-                        Color(0x00FFFFFF),
-                      ],
-                    ),
-                  ),
+              child: SizedBox(
+                width: 10,
+                height: 10,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.0,
+                  color: Colors.white.withValues(alpha: 0.30),
                 ),
               ),
             ),

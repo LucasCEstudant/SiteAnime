@@ -53,18 +53,12 @@ class _AnimeCardHoverState extends State<AnimeCardHover> {
             boxShadow: _hovered
                 ? [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.5),
-                      blurRadius: 10,
-                      offset: const Offset(0, 6),
+                      color: Colors.black.withValues(alpha: 0.4),
+                      blurRadius: 6,
+                      offset: const Offset(0, 4),
                     ),
                   ]
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                : null,
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.card),

@@ -628,6 +628,7 @@ class _MyListPageState extends ConsumerState<MyListPage> {
                     );
                   },
                   childCount: filtered.length,
+                  addAutomaticKeepAlives: false,
                 ),
               ),
             ),
