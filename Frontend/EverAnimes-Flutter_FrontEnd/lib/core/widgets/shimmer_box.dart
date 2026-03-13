@@ -75,8 +75,8 @@ class _ShimmerPainter extends CustomPainter {
     required this.baseColor,
     required this.highlightColor,
     required this.borderRadius,
-  }) : super(repaint: animation),
-       _animation = animation;
+  }) : _animation = animation,
+       super(repaint: animation);
 
   final Animation<double> _animation;
   final Color baseColor;
