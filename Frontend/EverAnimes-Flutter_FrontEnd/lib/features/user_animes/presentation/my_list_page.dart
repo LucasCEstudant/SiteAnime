@@ -736,6 +736,9 @@ class _StatusFilterDropdown extends StatelessWidget {
   final String? value;
   final ValueChanged<String?> onChanged;
 
+  /// Sentinel value meaning "all statuses" — avoids the PopupMenuButton null issue.
+  static const String _kAllStatuses = '__all__';
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -743,15 +746,15 @@ class _StatusFilterDropdown extends StatelessWidget {
     final selectedColor = value == null ? AppColors.textPrimary : _statusBadgeColor(value!);
 
     return _FilterFieldShell(
-      child: _AnchoredPopupField<String?>(
+      child: _AnchoredPopupField<String>(
         valueLabel: selectedLabel,
         valueColor: selectedColor,
         valueWeight: value == null ? FontWeight.w500 : FontWeight.w700,
         trailing: const Icon(Icons.filter_list, color: AppColors.textSecondary, size: 18),
         items: _kStatusOptions
             .map(
-              (s) => PopupMenuItem<String?>(
-                value: s,
+              (s) => PopupMenuItem<String>(
+                value: s ?? _kAllStatuses,
                 child: s == null
                     ? Text(
                         l10n.all,
@@ -775,7 +778,9 @@ class _StatusFilterDropdown extends StatelessWidget {
               ),
             )
             .toList(),
-        onSelected: onChanged,
+        onSelected: (selected) {
+          onChanged(selected == _kAllStatuses ? null : selected);
+        },
       ),
     );
   }
@@ -804,6 +809,7 @@ class _AnchoredPopupField<T> extends StatelessWidget {
     return PopupMenuButton<T>(
       tooltip: '',
       position: PopupMenuPosition.under,
+      offset: const Offset(0, 4),
       color: AppColors.surface,
       surfaceTintColor: Colors.transparent,
       constraints: const BoxConstraints(
@@ -870,9 +876,11 @@ class _MyListCardState extends State<_MyListCard> {
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
+
     return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
+      onEnter: isMobile ? null : (_) => setState(() => _hovered = true),
+      onExit: isMobile ? null : (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: widget.editorMode
             ? widget.onToggleSelect
@@ -902,7 +910,7 @@ class _MyListCardState extends State<_MyListCard> {
               },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          transform: _hovered
+          transform: (_hovered && !isMobile)
               ? Matrix4.diagonal3Values(1.04, 1.04, 1.0)
               : Matrix4.identity(),
           transformAlignment: Alignment.center,
@@ -1150,64 +1158,53 @@ class _YearFilterChip extends StatelessWidget {
   final int? value;
   final ValueChanged<int?> onChanged;
 
+  /// Sentinel value meaning "all years" — avoids the PopupMenuButton null issue.
+  static const int _kAllYears = -1;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final currentYear = DateTime.now().year;
     final years = List.generate(30, (i) => currentYear - i);
-    final active = value != null;
 
     return _FilterFieldShell(
-      borderColor: active ? AppColors.accent : null,
-      child: Row(
-        children: [
-          Expanded(
-            child: _AnchoredPopupField<int?>(
-              valueLabel: value?.toString() ?? l10n.all,
-              valueColor: active ? AppColors.accent : AppColors.textPrimary,
-              valueWeight: active ? FontWeight.w700 : FontWeight.w500,
-              trailing: const Icon(Icons.arrow_drop_down,
-                  color: AppColors.textSecondary, size: 18),
-              items: [
-                PopupMenuItem<int?>(
-                  value: null,
-                  child: Text(
-                    l10n.all,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                ...years.map(
-                  (y) => PopupMenuItem<int?>(
-                    value: y,
-                    child: Text(
-                      '$y',
-                      style: TextStyle(
-                        color:
-                            value == y ? AppColors.accent : AppColors.textPrimary,
-                        fontSize: 13,
-                        fontWeight:
-                            value == y ? FontWeight.w700 : FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-              onSelected: onChanged,
+      child: _AnchoredPopupField<int>(
+        valueLabel: value?.toString() ?? l10n.all,
+        valueColor: AppColors.textPrimary,
+        valueWeight: FontWeight.w500,
+        trailing: const Icon(Icons.arrow_drop_down,
+            color: AppColors.textSecondary, size: 18),
+        items: [
+          PopupMenuItem<int>(
+            value: _kAllYears,
+            child: Text(
+              l10n.all,
+              style: TextStyle(
+                color: value == null ? AppColors.accent : AppColors.textPrimary,
+                fontSize: 13,
+                fontWeight: value == null ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
           ),
-          if (active) ...[
-            const SizedBox(width: 6),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => onChanged(null),
-              child: const Icon(Icons.close, color: AppColors.accent, size: 17),
+          ...years.map(
+            (y) => PopupMenuItem<int>(
+              value: y,
+              child: Text(
+                '$y',
+                style: TextStyle(
+                  color:
+                      value == y ? AppColors.accent : AppColors.textPrimary,
+                  fontSize: 13,
+                  fontWeight:
+                      value == y ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
             ),
-          ],
+          ),
         ],
+        onSelected: (selected) {
+          onChanged(selected == _kAllYears ? null : selected);
+        },
       ),
     );
   }
@@ -1271,11 +1268,9 @@ class _SortDropdown extends StatelessWidget {
 class _FilterFieldShell extends StatelessWidget {
   const _FilterFieldShell({
     required this.child,
-    this.borderColor,
   });
 
   final Widget child;
-  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -1287,7 +1282,7 @@ class _FilterFieldShell extends StatelessWidget {
         color: AppColors.bgBase,
         borderRadius: BorderRadius.circular(AppRadius.btn),
         border: Border.all(
-          color: borderColor ?? AppColors.surfaceVariant.withAlpha(120),
+          color: AppColors.surfaceVariant.withAlpha(120),
         ),
       ),
       child: child,

@@ -6,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/proxied_image.dart';
-import '../../../core/widgets/upscalable_hero_image.dart';
 import '../../../core/widgets/translatable_text.dart';
 import '../../../widgets/top_header.dart';
 import '../../../core/widgets/error_view.dart';
@@ -195,8 +194,8 @@ class _DetailsHeroBackground extends StatelessWidget {
           if (coverUrl != null)
             Hero(
               tag: heroTag,
-              child: UpscalableHeroImage(
-                imageUrl: coverUrl!,
+              child: ProxiedImage(
+                src: coverUrl!,
                 fit: BoxFit.cover,
                 errorBuilder: (ctx, err, _) => Container(
                   color: AppColors.surface,
@@ -298,6 +297,9 @@ class _BackButtonState extends State<_BackButton> {
 class _DetailsHeroSection extends StatelessWidget {
   const _DetailsHeroSection({required this.details});
 
+  static const double _kCoverWidth = 160;
+  static const double _kCoverAspectRatio = 3 / 4;
+
   final AnimeDetailsDto details;
 
   @override
@@ -314,13 +316,33 @@ class _DetailsHeroSection extends StatelessWidget {
       ),
       child: isWide
           ? Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _DetailsCoverCard(coverUrl: details.coverUrl),
-                const SizedBox(width: AppSpacing.xl),
-                Expanded(child: _DetailsTitleBlock(details: details)),
-              ],
-            )
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Left column: cover + add-to-list below
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _DetailsCoverCard(coverUrl: details.coverUrl),
+                      const SizedBox(height: 10),
+                      AddToListButton(
+                        compact: false,
+                        details: details,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: AppSpacing.xl),
+                  // Right column: title at top, play button at bottom
+                  Expanded(
+                    child: SizedBox(
+                      height: _kCoverWidth / _kCoverAspectRatio,
+                      child: _DetailsTitleBlock(
+                        details: details,
+                        showAddToList: false,
+                      ),
+                    ),
+                  ),
+                ],
+              )
           : _DetailsTitleBlock(details: details),
     );
   }
@@ -375,83 +397,102 @@ class _DetailsCoverCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _DetailsTitleBlock extends ConsumerWidget {
-  const _DetailsTitleBlock({required this.details});
+  const _DetailsTitleBlock({
+    required this.details,
+    this.showAddToList = true,
+  });
 
   final AnimeDetailsDto details;
+  final bool showAddToList;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
     final isAdmin = authState.isAuthenticated &&
         authState.role.toLowerCase() == 'admin';
+    final displayTitle = details.title
+        .replaceAll(RegExp(r'[\r\n\t]+'), ' ')
+        .replaceAll(RegExp(r'\s{2,}'), ' ')
+        .trim();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Title + admin edit
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: SelectableText(
-                details.title,
-                style: AppTextStyles.titleHero,
-                maxLines: 3,
-              ),
+            // Title + admin edit
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Text(
+                    displayTitle,
+                    style: AppTextStyles.titleHero,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (isAdmin)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: _AdminEditButton(details: details),
+                  ),
+              ],
             ),
-            if (isAdmin)
-              Padding(
-                padding: const EdgeInsets.only(left: 6),
-                child: _AdminEditButton(details: details),
+            const SizedBox(height: 4),
+
+            // Add to list button — only shown in mobile layout
+            if (showAddToList) ...[
+              AddToListButton(
+                compact: false,
+                details: details,
               ),
+              const SizedBox(height: 10),
+            ],
+
+            _DetailsMetadataRow(details: details),
+            const SizedBox(height: 6),
+
+            // Genres
+            if (details.genres.isNotEmpty) ...[
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: details.genres
+                    .map(
+                      (g) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.accent.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: AppColors.accent.withValues(alpha: 0.40),
+                            width: 0.8,
+                          ),
+                        ),
+                        child: Text(
+                          g,
+                          style: AppTextStyles.meta.copyWith(
+                            color: AppColors.accent,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+              const SizedBox(height: 6),
+            ],
           ],
         ),
-        const SizedBox(height: 8),
 
-        // Add to list button — estilo banner (+ Adicionar à lista)
-        AddToListButton(
-          compact: false,
-          details: details,
-        ),
-        const SizedBox(height: 10),
-
-        _DetailsMetadataRow(details: details),
-        const SizedBox(height: 6),
-
-        // Genres
-        if (details.genres.isNotEmpty) ...[
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: details.genres
-                .map(
-                  (g) => Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: AppColors.accent.withValues(alpha: 0.40),
-                        width: 0.8,
-                      ),
-                    ),
-                    child: Text(
-                      g,
-                      style: AppTextStyles.meta.copyWith(
-                        color: AppColors.accent,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-          const SizedBox(height: 6),
-        ],
+        if (!showAddToList) const Spacer(),
 
         // Actions
         Row(

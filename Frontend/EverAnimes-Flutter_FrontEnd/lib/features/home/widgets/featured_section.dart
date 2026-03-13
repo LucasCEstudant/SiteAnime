@@ -6,7 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/data/dtos/anime_item_dto.dart';
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/widgets/upscalable_hero_image.dart';
+import '../../../core/utils/proxied_image.dart';
+import '../../../core/widgets/translatable_text.dart';
 import '../../../features/details/presentation/details_providers.dart';
 import '../../../features/details/presentation/video_embed_helper.dart';
 import '../../../l10n/app_localizations.dart';
@@ -309,8 +310,8 @@ class _FeaturedBackgroundImage extends StatelessWidget {
     final dpr = mq.devicePixelRatio.clamp(1.0, 3.0);
     final decodeWidth = (mq.size.width * dpr).toInt();
 
-    return UpscalableHeroImage(
-      imageUrl: coverUrl,
+    return ProxiedImage(
+      src: coverUrl,
       fit: BoxFit.cover,
       cacheWidth: decodeWidth,
       errorBuilder: (ctx, err, st) =>
@@ -571,8 +572,8 @@ class _TabContent extends ConsumerWidget {
         return SizedBox(
           key: const ValueKey('overview'),
           width: double.infinity,
-          child: Text(
-            synopsis,
+          child: TranslatableText(
+            text: synopsis,
             maxLines: AppBreakpoints.isMobile(context) ? 3 : 5,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
@@ -586,7 +587,7 @@ class _TabContent extends ConsumerWidget {
     );
   }
 
-  /// 5.2 – Episódios mostra lista real compacta
+  /// 5.2 – Episódios mostra lista real com thumbnails
   Widget _buildEpisodes(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final asyncDetails = ref.watch(animeDetailsProvider(_params));
@@ -616,8 +617,9 @@ class _TabContent extends ConsumerWidget {
             ),
           );
         }
-        // Mostra até 6 episódios em chips compactos horizontais
-        final shown = eps.take(6).toList();
+        // Mostra até 4 episódios com thumbnail
+        final shown = eps.take(4).toList();
+        final isMobile = AppBreakpoints.isMobile(context);
         return SizedBox(
           key: const ValueKey('episodes'),
           width: double.infinity,
@@ -627,32 +629,25 @@ class _TabContent extends ConsumerWidget {
             children: List.generate(shown.length, (i) {
               final ep = shown[i];
               final canEmbed = resolveEmbedUrl(ep.url) != null;
-              return ActionChip(
-                visualDensity: VisualDensity.compact,
-                avatar: Icon(
-                  canEmbed ? Icons.play_circle_outline : Icons.open_in_new,
-                  size: 14,
-                  color: AppColors.textSecondary,
-                ),
-                label: Text(
-                  ep.title,
-                  style: const TextStyle(fontSize: 11),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                onPressed: () {
+              final thumbUrl = resolveEpisodeThumbnail(
+                ep.url,
+                fallbackCoverUrl: details.coverUrl,
+              );
+
+              return _FeaturedEpisodeThumbnail(
+                title: ep.title,
+                thumbnailUrl: thumbUrl,
+                canEmbed: canEmbed,
+                width: isMobile ? 140.0 : 160.0,
+                onTap: () {
                   if (canEmbed) {
-                    final id =
-                        anime.externalId ?? '${anime.id}';
+                    final id = anime.externalId ?? '${anime.id}';
                     context.push('/watch/${anime.source}/$id?ep=$i');
                   } else {
                     launchUrl(Uri.parse(ep.url),
                         mode: LaunchMode.externalApplication);
                   }
                 },
-                backgroundColor:
-                    AppColors.surfaceVariant.withValues(alpha: 0.6),
-                side: BorderSide.none,
               );
             }),
           ),
@@ -716,6 +711,134 @@ class _TabContent extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _FeaturedEpisodeThumbnail — mini thumbnail card for episodes in featured
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FeaturedEpisodeThumbnail extends StatefulWidget {
+  const _FeaturedEpisodeThumbnail({
+    required this.title,
+    required this.thumbnailUrl,
+    required this.canEmbed,
+    required this.onTap,
+    this.width = 160.0,
+  });
+
+  final String title;
+  final String? thumbnailUrl;
+  final bool canEmbed;
+  final VoidCallback onTap;
+  final double width;
+
+  @override
+  State<_FeaturedEpisodeThumbnail> createState() =>
+      _FeaturedEpisodeThumbnailState();
+}
+
+class _FeaturedEpisodeThumbnailState extends State<_FeaturedEpisodeThumbnail> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cardHeight = widget.width * 9 / 16;
+    final isMobile = AppBreakpoints.isMobile(context);
+
+    return MouseRegion(
+      onEnter: isMobile ? null : (_) => setState(() => _hovered = true),
+      onExit: isMobile ? null : (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: _hovered && !isMobile ? 1.05 : 1.0,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          child: Container(
+            width: widget.width,
+            height: cardHeight,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              color: AppColors.surface,
+              border: Border.all(
+                color: _hovered
+                    ? AppColors.accent.withValues(alpha: 0.6)
+                    : AppColors.surfaceVariant.withValues(alpha: 0.4),
+                width: _hovered ? 1.5 : 0.8,
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Thumbnail image
+                if (widget.thumbnailUrl != null)
+                  ProxiedImage(
+                    src: widget.thumbnailUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (ctx, err, _) => Container(
+                      color: AppColors.surface,
+                      child: const Icon(Icons.movie_outlined,
+                          color: AppColors.textSecondary, size: 20),
+                    ),
+                  )
+                else
+                  Container(
+                    color: AppColors.surface,
+                    child: const Icon(Icons.movie_outlined,
+                        color: AppColors.textSecondary, size: 20),
+                  ),
+
+                // Gradient overlay
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: [0.4, 1.0],
+                      colors: [Color(0x00000000), Color(0xCC000000)],
+                    ),
+                  ),
+                ),
+
+                // Play icon
+                Center(
+                  child: Icon(
+                    widget.canEmbed
+                        ? Icons.play_circle_outline
+                        : Icons.open_in_new,
+                    color: AppColors.textPrimary.withValues(alpha: 0.9),
+                    size: 24,
+                  ),
+                ),
+
+                // Title at bottom
+                Positioned(
+                  left: 6,
+                  right: 6,
+                  bottom: 4,
+                  child: Text(
+                    widget.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                      shadows: [
+                        Shadow(color: Color(0xBB000000), blurRadius: 3),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

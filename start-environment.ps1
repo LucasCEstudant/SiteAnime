@@ -29,18 +29,8 @@ function Test-DockerComposePlugin {
     }
 }
 
-function Test-NvidiaRuntime {
-    try {
-        $info = (docker info 2>&1) -join ' '
-        return ($info -match '\bnvidia\b')
-    } catch {
-        return $false
-    }
-}
-
 $repoRoot = $PSScriptRoot
 $baseCompose = Join-Path $repoRoot 'docker-compose.yml'
-$gpuCompose = Join-Path $repoRoot 'docker-compose.gpu.yml'
 
 Write-Step 'Checking Docker prerequisites...'
 if (-not (Test-DockerReady)) {
@@ -58,40 +48,14 @@ if (-not (Test-Path $baseCompose)) {
     exit 1
 }
 
-$useGpu = $false
-$gpuAvailable = (Test-Path $gpuCompose) -and (Test-NvidiaRuntime)
-
-if ($gpuAvailable) {
-    Write-Ok 'NVIDIA runtime detected.'
-    Write-Host ''
-    Write-Host '  How should Real-ESRGAN run?' -ForegroundColor Yellow
-    Write-Host '    1) GPU  (faster, uses NVIDIA CUDA)'            -ForegroundColor White
-    Write-Host '    2) CPU  (slower, no GPU required)'             -ForegroundColor White
-    Write-Host ''
-    do {
-        $choice = Read-Host '  Choose [1/2] (default=1)'
-        if ([string]::IsNullOrWhiteSpace($choice)) { $choice = '1' }
-    } while ($choice -notin @('1','2'))
-
-    if ($choice -eq '1') {
-        $useGpu = $true
-        Write-Ok 'Real-ESRGAN will run with GPU reservation.'
-    } else {
-        Write-Ok 'Real-ESRGAN will run in CPU mode.'
-    }
-} else {
-    Write-Warn 'NVIDIA runtime not detected (or GPU override file missing). Real-ESRGAN will run in CPU mode.'
-}
-
 $composeArgs = @('-f', $baseCompose)
-if ($useGpu) {
-    $composeArgs += @('-f', $gpuCompose)
-}
 $composeArgs += @('up', '-d')
- $composeArgs += '--remove-orphans'
+$composeArgs += '--remove-orphans'
 if (-not $NoBuild) {
     $composeArgs += '--build'
 }
+$composeArgs += '--no-deps'
+$composeArgs += @('postgres', 'libretranslate', 'api', 'frontend')
 
 Write-Step "Running: docker compose $($composeArgs -join ' ')"
 Push-Location $repoRoot
@@ -100,6 +64,19 @@ try {
     if ($LASTEXITCODE -ne 0) {
         Write-Fail "docker compose exited with code $LASTEXITCODE"
         exit $LASTEXITCODE
+    }
+
+    # Realesrgan is no longer part of the default environment.
+    # Stop/remove it if present to avoid unnecessary resource usage.
+    try {
+        & docker compose stop realesrgan | Out-Null
+    } catch {
+        # Ignore when service/container is absent.
+    }
+    try {
+        & docker compose rm -f realesrgan | Out-Null
+    } catch {
+        # Ignore when service/container is absent.
     }
 } finally {
     Pop-Location
@@ -112,4 +89,3 @@ Write-Host '  Frontend:      http://localhost:32300'
 Write-Host '  API Swagger:   http://localhost:32301/swagger'
 Write-Host '  API Health:    http://localhost:32301/health/live'
 Write-Host '  LibreTranslate:http://localhost:32304/languages'
-Write-Host '  Real-ESRGAN:   http://localhost:32305/health'
