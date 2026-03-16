@@ -48,21 +48,29 @@ if (-not (Test-Path $baseCompose)) {
     exit 1
 }
 
-$composeArgs = @('-f', $baseCompose)
-$composeArgs += @('up', '-d')
-$composeArgs += '--remove-orphans'
-if (-not $NoBuild) {
-    $composeArgs += '--build'
-}
-$composeArgs += '--no-deps'
-$composeArgs += @('postgres', 'libretranslate', 'api', 'frontend')
-
-Write-Step "Running: docker compose $($composeArgs -join ' ')"
 Push-Location $repoRoot
 try {
-    & docker compose @composeArgs
+    # ── Step 1: Start postgres and libretranslate only if not already running ──
+    # --no-recreate prevents "container name already in use" errors when the
+    # containers exist from a previous run (even if stopped).
+    $infraArgs = @('-f', $baseCompose, 'up', '-d', '--no-recreate', '--no-deps', 'postgres', 'libretranslate')
+    Write-Step "Starting infrastructure services: docker compose $($infraArgs -join ' ')"
+    & docker compose @infraArgs
     if ($LASTEXITCODE -ne 0) {
-        Write-Fail "docker compose exited with code $LASTEXITCODE"
+        Write-Fail "docker compose (infra) exited with code $LASTEXITCODE"
+        exit $LASTEXITCODE
+    }
+
+    # ── Step 2: Build and (re)create api and frontend ─────────────────────────
+    $appArgs = @('-f', $baseCompose, 'up', '-d', '--remove-orphans', '--no-deps')
+    if (-not $NoBuild) {
+        $appArgs += '--build'
+    }
+    $appArgs += @('api', 'frontend')
+    Write-Step "Starting application services: docker compose $($appArgs -join ' ')"
+    & docker compose @appArgs
+    if ($LASTEXITCODE -ne 0) {
+        Write-Fail "docker compose (app) exited with code $LASTEXITCODE"
         exit $LASTEXITCODE
     }
 
@@ -89,3 +97,6 @@ Write-Host '  Frontend:      http://localhost:32300'
 Write-Host '  API Swagger:   http://localhost:32301/swagger'
 Write-Host '  API Health:    http://localhost:32301/health/live'
 Write-Host '  LibreTranslate:http://localhost:32304/languages'
+Write-Host ''
+# Pause so the console doesn't close immediately and the user can read output
+$null = Read-Host -Prompt 'Press Enter to continue...'
